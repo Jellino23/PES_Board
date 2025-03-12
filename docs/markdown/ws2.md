@@ -57,7 +57,7 @@ Below you can find a flow chart diagram showing the logic of the transitions for
     <i>Flow chart</i>
 </p>
 
-1. Connect the mechanical button to the **PC_5** pin on the Nucleo board (see [Nucleo Board Pinmap][0]). And add the ultrasonic distance sensor driver ``UltrasonicSensor.h`` to the top of the ***main.cpp*** file:
+1. Connect the mechanical button to the **PC_5** pin on the Nucleo board (one wire to **PC_5** and one wire to **GND**, see [Nucleo Board Pinmap][0]). And add the ultrasonic distance sensor driver ``UltrasonicSensor.h`` to the top of the ***main.cpp*** file:
 
 ```
 #include "UltrasonicSensor.h"

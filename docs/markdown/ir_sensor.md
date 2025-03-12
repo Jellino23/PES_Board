@@ -5,7 +5,7 @@
 [3]: https://robocraze.com/blogs/post/ir-sensor-working
 [4]: https://os.mbed.com/platforms/ST-Nucleo-F446RE/
 
-# Analog Distance Sensor
+# Infrared Distance Sensor
 
 The analog distance sensor is equipped with an IR diode and uses triangulation to measure distances. Using infrared technology, it calculates distances by measuring angles (indirectly). This device emits infrared light, observes reflections, and provides real-time distance measurements. Valuable for tasks requiring distance determination, it serves as a cheap and simple solution for applications where you need to measure the distance.
 
