@@ -1,8 +1,6 @@
 //Test Test, de Pedro isch fett und de Maik blöd
 //Test Test, dLeti isch chlii
 //da isch korrekt
-
-
 #include "mbed.h"
 
 // pes board pin map
@@ -10,6 +8,9 @@
 
 // drivers
 #include "DebounceIn.h"
+#include "UltrasonicSensor.h"
+#include "DCMotor.h"
+#include "FastPWM.h"
 
 bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
                                    // decides whether to execute the main task or not
@@ -53,6 +54,33 @@ int main()
     // a led has an anode (+) and a cathode (-), the cathode needs to be connected to ground via the resistor
     DigitalOut led1(PB_9);
 
+    // create object to enable power electronics for the dc motors
+    DigitalOut enable_motors(PB_ENABLE_DCMOTORS);
+//ANPASSEN FÜR ENTSPRECHENDE KLEMMEN
+    // motor M1
+    // const float gear_ratio_M2 = 78.125f; // gear ratio
+    // const float kn_M2 = 180.0f / 12.0f;  // motor constant [rpm/V]
+    // // it is assumed that only one motor is available, there fore
+    // // we use the pins from M1, so you can leave it connected to M1
+    // DCMotor motor_M2(PB_PWM_M1, PB_ENC_A_M1, PB_ENC_B_M1, gear_ratio_M2, kn_M2, voltage_max);
+    // // limit max. velocity to half physical possible velocity
+    // motor_M2.setMaxVelocity(motor_M2.getMaxPhysicalVelocity() * 0.5f);
+    // // enable the motion planner for smooth movements
+    // motor_M2.enableMotionPlanner();
+    // // limit max. acceleration to half of the default acceleration
+    // motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.5f);
+//ANPASSEN FÜR ENTSPRECHENDE KLEMMEN
+    // motor M2
+    //const float gear_ratio_M3 = 78.125f; // gear ratio
+    //const float kn_M3 = 180.0f / 12.0f;  // motor constant [rpm/V]
+    // it is assumed that only one motor is available, there fore
+    // we use the pins from M1, so you can leave it connected to M1
+    //DCMotor motor_M3(PB_PWM_M1, PB_ENC_A_M1, PB_ENC_B_M1, gear_ratio_M3, kn_M3, voltage_max);
+    // enable the motion planner for smooth movement
+    //motor_M3.enableMotionPlanner();
+    // limit max. velocity to half physical possible velocity
+    //motor_M3.setMaxVelocity(motor_M3.getMaxPhysicalVelocity() * 0.5f);
+
     // start timer
     main_task_timer.start();
 
@@ -64,7 +92,8 @@ int main()
             // state machine
             switch (robot_state) {
                 case RobotState::INITIAL: {
-
+                    // enable hardwaredriver DC motors: 0 -> disabled, 1 -> enabled
+                    enable_motors = 1;
                     break;
                 }
                 case RobotState::PLATFORM: {
