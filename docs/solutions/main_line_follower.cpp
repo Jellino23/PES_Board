@@ -8,6 +8,8 @@
 #include "DCMotor.h"
 #include "LineFollower.h"
 
+#define USE_GEAR_RATIO_78 false // st this to true use gear ratio 78.125, otherwise 100.00 is used
+
 bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
                                    // decides whether to execute the main task or not
 bool do_reset_all_once = false;    // this variable is used to reset certain variables and objects and
@@ -44,17 +46,38 @@ int main()
 
     const float voltage_max = 12.0f; // maximum voltage of battery packs, adjust this to
                                      // 6.0f V if you only use one battery pack
-    const float gear_ratio = 78.125f; 
+#if USE_GEAR_RATIO_78
+    const float gear_ratio = 78.125f;
     const float kn = 180.0f / 12.0f;
+#else
+    const float gear_ratio = 100.00f;
+    const float kn = 140.0f / 12.0f;
+#endif
     // motor M1 and M2, do NOT enable motion planner when used with the LineFollower (disabled per default)
     DCMotor motor_M1(PB_PWM_M1, PB_ENC_A_M1, PB_ENC_B_M1, gear_ratio, kn, voltage_max);
     DCMotor motor_M2(PB_PWM_M2, PB_ENC_A_M2, PB_ENC_B_M2, gear_ratio, kn, voltage_max);
 
+    // line follower, tune max. vel rps to your needs
+#if USE_GEAR_RATIO_78
     const float d_wheel = 0.035f;  // wheel diameter in meters
     const float b_wheel = 0.1518f; // wheelbase, distance from wheel to wheel in meters
     const float bar_dist = 0.118f; // distance from wheel axis to leds on sensor bar / array in meters
-    // line follower
+#else
+    const float d_wheel = 0.0372f; // wheel diameter in meters
+    const float b_wheel = 0.156f;  // wheelbase, distance from wheel to wheel in meters
+    const float bar_dist = 0.114f; // distance from wheel axis to leds on sensor bar / array in meters
+#endif
     LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M2.getMaxPhysicalVelocity());
+
+    // nonlinear controller gains, tune to your needs
+#if USE_GEAR_RATIO_78
+    const float Kp = 1.0f * 2.0f;
+    const float Kp_nl = 1.0f * 17.0f;
+#else
+    const float Kp = 1.2f * 2.0f;
+    const float Kp_nl = 1.2f * 17.0f;
+#endif
+    lineFollower.setRotationalVelocityGain(Kp, Kp_nl);
 
     // start timer
     main_task_timer.start();

@@ -55,9 +55,9 @@ Before doing the task you may look at the [Structuring a Robot Task Tutorial](..
 ```
 // mechanical button
 DigitalIn mechanical_button(PC_5); // create DigitalIn object to evaluate mechanical button, you
-                                    // need to specify the mode for proper usage, see below
+                                   // need to specify the mode for proper usage, see below
 mechanical_button.mode(PullUp);    // sets pullup between pin and 3.3 V, so that there
-                                    // is a defined potential
+                                   // is a defined potential
 ```
 
 4. Connect the ultrasonic sensor to pin **D3** on the PES board (see [PES Board Pinmap](../datasheets/pes_board_peripherals.pdf))
@@ -172,7 +172,7 @@ switch (robot_state) {
     }
 ```
 
-1.   In the **FORWARD** state, include a command to execute 2.9f forward rotations and a condition that transitions to the **BACKWARD** after reaching 2.85f revolutions. Also, add a condition that, if the distance measured by the ultrasonic sensor is less than 4.5f cm, the system will enter the **EMERGENCY** state.
+12. In the **FORWARD** state, include a command to execute 2.9f forward rotations and a condition that transitions to the **BACKWARD** state after reaching 2.85f revolutions. Also, add a condition that, if the distance measured by the ultrasonic sensor is less than 4.5f cm, the system will enter the **EMERGENCY** state.
 
 ```
     case RobotState::FORWARD: {
@@ -191,7 +191,7 @@ switch (robot_state) {
     }
 ```
 
-13.  In the **BACKWARD** state, the device returns to the initial position. Additionally, include a statement to transition to the **SLEEP** state after reaching that position.
+13. In the **BACKWARD** state, the device returns to the initial position. Additionally, include a statement to transition to the **SLEEP** state after reaching that position.
 
 ```
     case RobotState::BACKWARD: {
@@ -206,7 +206,7 @@ switch (robot_state) {
     }
 ```
 
-14.  In the **EMERGENCY** state, the machine needs to quickly return to the initial position and turn off. To achieve this, disable the motion planner, as it allows for the fastest possible movement. Subsequently, turn off the machine, simulating the effect of pressing the emergency button. To reuse the mechatronic system, reset the machine using the **RESET** button logic `toggle_do_execute_main_fcn()`.
+14. In the **EMERGENCY** state, the machine needs to quickly return to the initial position and turn off. To achieve this, disable the motion planner, as it allows for the fastest possible movement. Subsequently, turn "off" the machine, simulating the effect of pressing the emergency button. To reuse the mechatronic system, reset the machine using the **RESET** button logic `toggle_do_execute_main_fcn()`.
 
 ```
     case RobotState::EMERGENCY: {
@@ -222,7 +222,7 @@ switch (robot_state) {
     }
 ```
 
-15.  In the end of the ``while()`` loop, add the following command to print the distance measured by the sensor and the number of rotations of the motor.
+15. At the end of the ``while()`` loop, add the following command to print the distance measured by the sensor and the number of rotations of the motor.
 
 ```
 // print to the serial terminal

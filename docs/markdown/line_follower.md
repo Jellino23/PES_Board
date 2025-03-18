@@ -4,11 +4,11 @@
 [2]: https://learn.sparkfun.com/tutorials/serial-peripheral-interface-spi/all
 [3]: https://os.mbed.com/platforms/ST-Nucleo-F446RE/
 
-# Line Follower 
+# Line Follower
 
 ## Line Follower Array
 
-The sensor incorporates eight diodes for line detection, with each diode's illumination indicating the presence of a line beneath it. The IR brightness control and indicator can be adjusted with the on-board potentiometer. The sensor's I2C interface allows for easy integration with the PES board, and the sensor's low power consumption makes it suitable for battery-powered applications. The sensor's compact size and low weight make it an ideal choice for small robots.
+The sensor incorporates eight diodes for line detection, with each diode's illumination indicating the presence of a line beneath it. The IR brightness control and indicator can be adjusted with the on-board potentiometer. The sensor's I2C interface allows for easy integration with the PES board, and the sensor's low power consumption makes it suitable for battery-powered applications. The sensor's compact size and low weight makes it an ideal choice for small robots.
 
 <p align="center">
     <img src="../images/line_follower_sensor.png" alt="Line follower sensor" width="450"/>
@@ -212,8 +212,8 @@ const float bar_dist = 0.118f; // distance from wheel axis to leds on sensor bar
 LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M2.getMaxPhysicalVelocity());
 ```
 
-**NOTE:** 
-- The velocity values provided as input are originally expressed in revolutions per second. However, within the driver, these values are converted into radians per second for calculation purposes. Once the calculation is completed in the driver, it is then converted back into revolutions per second. This conversion allows for the use of a unit directly compatible with the DC motor object.
+<!-- **NOTE:** 
+- The velocity values provided as input are originally expressed in revolutions per second. However, within the driver, these values are converted into radians per second for calculation purposes. Once the calculation is completed in the driver, it is then converted back into revolutions per second. This conversion allows for the use of a unit directly compatible with the DC motor object. -->
 
 ### Parametres Adjustment
 
