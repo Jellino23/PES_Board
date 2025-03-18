@@ -1,6 +1,5 @@
 //Test Test, de Pedro isch fett und de Maik blöd
 //Test Test, dLeti isch chlii
-
 //da isch korrekt
 
 
@@ -25,6 +24,17 @@ void toggle_do_execute_main_fcn(); // custom function which is getting executed 
 // main runs as an own thread
 int main()
 {
+    // set up states for state machine
+    enum RobotState {
+        INITIAL,
+        PLATFORM,
+        ROPEPREPARE,
+        ROPE,
+        OBSTACLEPREPARE,
+        OBSTACLE,
+        SLEEP,
+        EMERGENCY
+    } robot_state = RobotState::INITIAL;
     // attach button fall function address to user button object
     user_button.fall(&toggle_do_execute_main_fcn);
 
@@ -51,7 +61,47 @@ int main()
         main_task_timer.reset();
 
         if (do_execute_main_task) {
+            // state machine
+            switch (robot_state) {
+                case RobotState::INITIAL: {
 
+                    break;
+                }
+                case RobotState::PLATFORM: {
+
+                    break;
+                }
+                case RobotState::ROPEPREPARE: {
+
+                    break;
+                }
+                case RobotState::ROPE: {
+
+                    break;
+                }
+                case RobotState::OBSTACLEPREPARE: {
+
+                    break;
+                }
+                case RobotState::OBSTACLE: {
+
+                    break;
+                }
+                case RobotState::SLEEP: {
+
+                    break;
+                }
+                case RobotState::EMERGENCY: {
+                    //steppermotor zurück auf 0.0f
+                    //motoren ausschalten
+
+                    break;
+                }
+                default: {
+
+                    break; // do nothing
+                }
+            }
             // visual feedback that the main task is executed, setting this once would actually be enough
             led1 = 1;
         } else {
