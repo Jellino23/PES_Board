@@ -2,7 +2,6 @@
 //Test Test, dLeti isch chlii
 //da isch korrekt
 
-//test test
 #include "mbed.h"
 
 // pes board pin map
