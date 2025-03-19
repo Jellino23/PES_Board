@@ -187,6 +187,7 @@ int main()
                 // reset variables and objects
                 led1 = 0;
                 servo_D0.disable();
+                servo_D1.disable();
                 enable_motors = 0;
                 //us_distance_cm = 0.0f;
                 robot_state = RobotState::INITIAL;
