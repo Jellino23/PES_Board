@@ -56,30 +56,42 @@ int main()
 
     // create object to enable power electronics for the dc motors
     DigitalOut enable_motors(PB_ENABLE_DCMOTORS);
-//ANPASSEN FÜR ENTSPRECHENDE KLEMMEN
-    // motor M1
-    // const float gear_ratio_M2 = 78.125f; // gear ratio
-    // const float kn_M2 = 180.0f / 12.0f;  // motor constant [rpm/V]
-    // // it is assumed that only one motor is available, there fore
-    // // we use the pins from M1, so you can leave it connected to M1
-    // DCMotor motor_M2(PB_PWM_M1, PB_ENC_A_M1, PB_ENC_B_M1, gear_ratio_M2, kn_M2, voltage_max);
-    // // limit max. velocity to half physical possible velocity
-    // motor_M2.setMaxVelocity(motor_M2.getMaxPhysicalVelocity() * 0.5f);
-    // // enable the motion planner for smooth movements
-    // motor_M2.enableMotionPlanner();
-    // // limit max. acceleration to half of the default acceleration
-    // motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.5f);
-//ANPASSEN FÜR ENTSPRECHENDE KLEMMEN
-    // motor M2
-    //const float gear_ratio_M3 = 78.125f; // gear ratio
-    //const float kn_M3 = 180.0f / 12.0f;  // motor constant [rpm/V]
-    // it is assumed that only one motor is available, there fore
-    // we use the pins from M1, so you can leave it connected to M1
-    //DCMotor motor_M3(PB_PWM_M1, PB_ENC_A_M1, PB_ENC_B_M1, gear_ratio_M3, kn_M3, voltage_max);
-    // enable the motion planner for smooth movement
-    //motor_M3.enableMotionPlanner();
+
+    const float voltage_max = 12.0f; // maximum voltage of battery packs, adjust this to
+    // 6.0f V if you only use one battery pack
+
+    // Motor M1
+    const float gear_ratio_M1 = 100.0f; // gear ratio
+    const float kn_M1 = 140.0f / 12.0f;  // motor constant [rpm/V]
+    DCMotor motor_M1(PB_PWM_M1, PB_ENC_A_M1, PB_ENC_B_M1, gear_ratio_M1, kn_M1, voltage_max);
     // limit max. velocity to half physical possible velocity
-    //motor_M3.setMaxVelocity(motor_M3.getMaxPhysicalVelocity() * 0.5f);
+    motor_M1.setMaxVelocity(motor_M1.getMaxPhysicalVelocity() * 0.5f);
+    // enable the motion planner for smooth movements
+    motor_M1.enableMotionPlanner();
+    // limit max. acceleration to half of the default acceleration
+    motor_M1.setMaxAcceleration(motor_M1.getMaxAcceleration() * 0.5f);
+
+    // Motor M2
+    const float gear_ratio_M2 = 100.0f; // gear ratio
+    const float kn_M2 = 140.0f / 12.0f;  // motor constant [rpm/V]
+    DCMotor motor_M2(PB_PWM_M2, PB_ENC_A_M2, PB_ENC_B_M2, gear_ratio_M2, kn_M2, voltage_max);
+    // limit max. velocity to half physical possible velocity
+    motor_M2.setMaxVelocity(motor_M2.getMaxPhysicalVelocity() * 0.5f);
+    // enable the motion planner for smooth movements
+    motor_M2.enableMotionPlanner();
+    // limit max. acceleration to half of the default acceleration
+    motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.5f);
+
+    // Motor M3
+    const float gear_ratio_M3 = 100.0f; // gear ratio
+    const float kn_M3 = 140.0f / 12.0f;  // motor constant [rpm/V]
+    DCMotor motor_M3(PB_PWM_M3, PB_ENC_A_M3, PB_ENC_B_M3, gear_ratio_M3, kn_M3, voltage_max);
+    // limit max. velocity to half physical possible velocity
+    motor_M3.setMaxVelocity(motor_M3.getMaxPhysicalVelocity() * 0.5f);
+    // enable the motion planner for smooth movements
+    motor_M3.enableMotionPlanner();
+    // limit max. acceleration to half of the default acceleration
+    motor_M3.setMaxAcceleration(motor_M3.getMaxAcceleration() * 0.5f);
 
     // start timer
     main_task_timer.start();
