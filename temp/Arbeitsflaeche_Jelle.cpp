@@ -12,6 +12,7 @@
 #include "UltrasonicSensor.h"
 #include "DCMotor.h"
 #include "FastPWM.h"
+#include "Servo.h"
 
 bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
                                    // decides whether to execute the main task or not
@@ -54,6 +55,28 @@ int main()
     // create DigitalOut object to command extra led, you need to add an aditional resistor, e.g. 220...500 Ohm
     // a led has an anode (+) and a cathode (-), the cathode needs to be connected to ground via the resistor
     DigitalOut led1(PB_9);
+
+    // servo
+    Servo servo_D0(PB_D0);
+    Servo servo_D1(PB_D1);
+
+    // minimal pulse width and maximal pulse width obtained from the servo calibration process
+    // reely S0090 
+    //ANPASSEN
+    float servo_D0_ang_min = 0.0325f;
+    float servo_D0_ang_max = 0.1175f;
+    float servo_D1_ang_min = 0.0325f;
+    float servo_D1_ang_max = 0.1175f;
+
+    // servo.setPulseWidth: before calibration (0,1) -> (min pwm, max pwm)
+    // servo.setPulseWidth: after calibration (0,1) -> (servo_D0_ang_min, servo_D0_ang_max)
+    servo_D0.calibratePulseMinMax(servo_D0_ang_min, servo_D0_ang_max);
+    servo_D1.calibratePulseMinMax(servo_D1_ang_min, servo_D1_ang_max);
+
+    // EVTL ANPASSEN
+    // default acceleration of the servo motion profile is 1.0e6f
+    servo_D0.setMaxAcceleration(0.3f);
+    servo_D1.setMaxAcceleration(0.3f);
 
     // create object to enable power electronics for the dc motors
     DigitalOut enable_motors(PB_ENABLE_DCMOTORS);
@@ -107,6 +130,10 @@ int main()
                 case RobotState::INITIAL: {
                     // enable hardwaredriver DC motors: 0 -> disabled, 1 -> enabled
                     enable_motors = 1;
+                    if (!servo_D0.isEnabled())
+                        servo_D0.enable();
+                    if (!servo_D1.isEnabled())
+                        servo_D1.enable();
                     break;
                 }
                 case RobotState::PLATFORM: {
@@ -115,7 +142,9 @@ int main()
                     break;
                 }
                 case RobotState::ROPEPREPARE: {
-
+                    //ANPASSEN
+                    servo_D0.setPulseWidth(1.0f);
+                    servo_D1.setPulseWidth(1.0f);
                     break;
                 }
                 case RobotState::ROPE: {
@@ -124,7 +153,9 @@ int main()
                     break;
                 }
                 case RobotState::OBSTACLEPREPARE: {
-
+                    //ANPASSEN
+                    servo_D0.setPulseWidth(0.0f);
+                    servo_D1.setPulseWidth(0.0f);
                     break;
                 }
                 case RobotState::OBSTACLE: {
@@ -155,6 +186,11 @@ int main()
 
                 // reset variables and objects
                 led1 = 0;
+                servo_D0.disable();
+                enable_motors = 0;
+                //us_distance_cm = 0.0f;
+                robot_state = RobotState::INITIAL;
+
             }
         }
 
@@ -169,7 +205,7 @@ int main()
             thread_sleep_for(main_task_period_ms - main_task_elapsed_time_ms);
     }
 }
-//tetst
+
 void toggle_do_execute_main_fcn()
 {
     // toggle do_execute_main_task if the button was pressed
