@@ -109,7 +109,8 @@ int main()
                     break;
                 }
                 case RobotState::PLATFORM: {
-
+                    motor_M1.setVelocity(motor_M1.getMaxVelocity());
+                    motor_M2.setVelocity(motor_M2.getMaxVelocity());
                     break;
                 }
                 case RobotState::ROPEPREPARE: {
@@ -117,7 +118,8 @@ int main()
                     break;
                 }
                 case RobotState::ROPE: {
-
+                    motor_M1.setVelocity(motor_M1.getMaxVelocity());
+                    motor_M2.setVelocity(motor_M2.getMaxVelocity());
                     break;
                 }
                 case RobotState::OBSTACLEPREPARE: {
