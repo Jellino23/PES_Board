@@ -1,3 +1,6 @@
+//Test Test, de Pedro isch fett und de Maik blöd
+//Test Test, dLeti isch chlii
+//da isch korrekt
 #include "mbed.h"
 
 // pes board pin map
@@ -5,10 +8,9 @@
 
 // drivers
 #include "DebounceIn.h"
+#include "UltrasonicSensor.h"
 #include "DCMotor.h"
-#include "LineFollower.h"
-
-#define USE_GEAR_RATIO_78 false // st this to true use gear ratio 78.125, otherwise 100.00 is used
+#include "FastPWM.h"
 
 bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
                                    // decides whether to execute the main task or not
@@ -23,6 +25,17 @@ void toggle_do_execute_main_fcn(); // custom function which is getting executed 
 // main runs as an own thread
 int main()
 {
+    // set up states for state machine
+    enum RobotState {
+        INITIAL,
+        PLATFORM,
+        ROPEPREPARE,
+        ROPE,
+        OBSTACLEPREPARE,
+        OBSTACLE,
+        SLEEP,
+        EMERGENCY
+    } robot_state = RobotState::INITIAL;
     // attach button fall function address to user button object
     user_button.fall(&toggle_do_execute_main_fcn);
 
@@ -45,39 +58,40 @@ int main()
     DigitalOut enable_motors(PB_ENABLE_DCMOTORS);
 
     const float voltage_max = 12.0f; // maximum voltage of battery packs, adjust this to
-                                     // 6.0f V if you only use one battery pack
-#if USE_GEAR_RATIO_78
-    const float gear_ratio = 78.125f;
-    const float kn = 180.0f / 12.0f;
-#else
-    const float gear_ratio = 100.00f;
-    const float kn = 140.0f / 12.0f;
-#endif
-    // motor M1 and M2, do NOT enable motion planner when used with the LineFollower (disabled per default)
-    DCMotor motor_M1(PB_PWM_M1, PB_ENC_A_M1, PB_ENC_B_M1, gear_ratio, kn, voltage_max);
-    DCMotor motor_M2(PB_PWM_M2, PB_ENC_A_M2, PB_ENC_B_M2, gear_ratio, kn, voltage_max);
+    // 6.0f V if you only use one battery pack
 
-    // line follower, tune max. vel rps to your needs
-#if USE_GEAR_RATIO_78
-    const float d_wheel = 0.035f;  // wheel diameter in meters
-    const float b_wheel = 0.1518f; // wheelbase, distance from wheel to wheel in meters
-    const float bar_dist = 0.118f; // distance from wheel axis to leds on sensor bar / array in meters
-#else
-    const float d_wheel = 0.0372f; // wheel diameter in meters
-    const float b_wheel = 0.156f;  // wheelbase, distance from wheel to wheel in meters
-    const float bar_dist = 0.114f; // distance from wheel axis to leds on sensor bar / array in meters
-#endif
-    LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M2.getMaxPhysicalVelocity());
+    // Motor M1
+    const float gear_ratio_M1 = 100.0f; // gear ratio
+    const float kn_M1 = 140.0f / 12.0f;  // motor constant [rpm/V]
+    DCMotor motor_M1(PB_PWM_M1, PB_ENC_A_M1, PB_ENC_B_M1, gear_ratio_M1, kn_M1, voltage_max);
+    // limit max. velocity to half physical possible velocity
+    motor_M1.setMaxVelocity(motor_M1.getMaxPhysicalVelocity() * 0.5f);
+    // enable the motion planner for smooth movements
+    motor_M1.enableMotionPlanner();
+    // limit max. acceleration to half of the default acceleration
+    motor_M1.setMaxAcceleration(motor_M1.getMaxAcceleration() * 0.5f);
 
-    // nonlinear controller gains, tune to your needs
-#if USE_GEAR_RATIO_78
-    const float Kp = 1.0f * 2.0f;
-    const float Kp_nl = 1.0f * 17.0f;
-#else
-    const float Kp = 1.2f * 2.0f;
-    const float Kp_nl = 1.2f * 17.0f;
-#endif
-    lineFollower.setRotationalVelocityGain(Kp, Kp_nl);
+    // Motor M2
+    const float gear_ratio_M2 = 100.0f; // gear ratio
+    const float kn_M2 = 140.0f / 12.0f;  // motor constant [rpm/V]
+    DCMotor motor_M2(PB_PWM_M2, PB_ENC_A_M2, PB_ENC_B_M2, gear_ratio_M2, kn_M2, voltage_max);
+    // limit max. velocity to half physical possible velocity
+    motor_M2.setMaxVelocity(motor_M2.getMaxPhysicalVelocity() * 0.5f);
+    // enable the motion planner for smooth movements
+    motor_M2.enableMotionPlanner();
+    // limit max. acceleration to half of the default acceleration
+    motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.5f);
+
+    // Motor M3
+    const float gear_ratio_M3 = 100.0f; // gear ratio
+    const float kn_M3 = 140.0f / 12.0f;  // motor constant [rpm/V]
+    DCMotor motor_M3(PB_PWM_M3, PB_ENC_A_M3, PB_ENC_B_M3, gear_ratio_M3, kn_M3, voltage_max);
+    // limit max. velocity to half physical possible velocity
+    motor_M3.setMaxVelocity(motor_M3.getMaxPhysicalVelocity() * 0.5f);
+    // enable the motion planner for smooth movements
+    motor_M3.enableMotionPlanner();
+    // limit max. acceleration to half of the default acceleration
+    motor_M3.setMaxAcceleration(motor_M3.getMaxAcceleration() * 0.5f);
 
     // start timer
     main_task_timer.start();
@@ -87,11 +101,52 @@ int main()
         main_task_timer.reset();
 
         if (do_execute_main_task) {
+            // state machine
+            switch (robot_state) {
+                case RobotState::INITIAL: {
+                    // enable hardwaredriver DC motors: 0 -> disabled, 1 -> enabled
+                    enable_motors = 1;
+                    break;
+                }
+                case RobotState::PLATFORM: {
+                    motor_M1.setVelocity(motor_M1.getMaxVelocity());
+                    motor_M2.setVelocity(motor_M2.getMaxVelocity());
+                    break;
+                }
+                case RobotState::ROPEPREPARE: {
+
+                    break;
+                }
+                case RobotState::ROPE: {
+                    motor_M1.setVelocity(motor_M1.getMaxVelocity());
+                    motor_M2.setVelocity(motor_M2.getMaxVelocity());
+                    break;
+                }
+                case RobotState::OBSTACLEPREPARE: {
+
+                    break;
+                }
+                case RobotState::OBSTACLE: {
+
+                    break;
+                }
+                case RobotState::SLEEP: {
+
+                    break;
+                }
+                case RobotState::EMERGENCY: {
+                    //steppermotor zurück auf 0.0f
+                    //motoren ausschalten
+
+                    break;
+                }
+                default: {
+
+                    break; // do nothing
+                }
+            }
             // visual feedback that the main task is executed, setting this once would actually be enough
             led1 = 1;
-            enable_motors = 1;
-            motor_M1.setVelocity(lineFollower.getRightWheelVelocity()); // set a desired speed for speed controlled dc motors M1
-            motor_M2.setVelocity(lineFollower.getLeftWheelVelocity());  // set a desired speed for speed controlled dc motors M2
         } else {
             // the following code block gets executed only once
             if (do_reset_all_once) {
@@ -99,7 +154,6 @@ int main()
 
                 // reset variables and objects
                 led1 = 0;
-                enable_motors = 0;
             }
         }
 
