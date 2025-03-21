@@ -136,10 +136,13 @@ int main()
         main_task_timer.reset();
 
         if (do_execute_main_task) {
-            // state machine
 
+            // visual feedback that the main task is executed, setting this once would actually be enough
+            led1 = 1;
+
+            //read distance with us_sensor
             const float us_distance_cm_candidate = us_sensor.read();
-            if (us_distance_cm_candidate > 0.0f)
+            if (us_distance_cm_candidate > 0.0f)        //only valid measurments are accepted
                 us_distance_cm = us_distance_cm_candidate;
             
             switch (robot_state) {
@@ -184,7 +187,7 @@ int main()
                         (servo_counter != 0))                       // avoid servo_counter = 0
                         servo_input += 0.1f;
                     servo_counter++;
-                    
+
                     if(servo_input > 0.95f){
                         servo_input = 1.0f;
                         robot_state = RobotState::ROPE;
@@ -248,6 +251,20 @@ int main()
                     //steppermotor zurück auf 0.0f
                     //motoren ausschalten
 
+                    // disable the motion planer and
+                    // move to the initial position asap
+                    // then reset the system
+                    servo_D0.setMaxAcceleration(1.0f);
+                    servo_D1.setMaxAcceleration(1.0f);
+                    servo_D0.setPulseWidth(0.0f);
+                    servo_D1.setPulseWidth(0.0f);
+
+                    motor_M3.disableMotionPlanner();
+                    motor_M3.setRotation(0.0f);
+                    if (motor_M3.getRotation() < 0.01f)
+                        toggle_do_execute_main_fcn();
+
+
                     break;
                 }
                 default: {
@@ -255,8 +272,7 @@ int main()
                     break; // do nothing
                 }
             }
-            // visual feedback that the main task is executed, setting this once would actually be enough
-            led1 = 1;
+
         } else {
             // the following code block gets executed only once
             if (do_reset_all_once) {
