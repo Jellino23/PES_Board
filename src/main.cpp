@@ -117,6 +117,10 @@ int main()
     // limit max. acceleration to half of the default acceleration
     motor_M3.setMaxAcceleration(motor_M3.getMaxAcceleration() * 0.5f);
 
+    // ultra sonic sensor
+    UltrasonicSensor us_sensor(PB_D3);
+    float us_distance_cm = 0.0f;
+
     // start timer
     main_task_timer.start();
 
@@ -126,47 +130,82 @@ int main()
 
         if (do_execute_main_task) {
             // state machine
+
+            const float us_distance_cm_candidate = us_sensor.read();
+            if (us_distance_cm_candidate > 0.0f)
+                us_distance_cm = us_distance_cm_candidate;
+            
             switch (robot_state) {
                 case RobotState::INITIAL: {
+                    printf("INITIAL\n");
                     // enable hardwaredriver DC motors: 0 -> disabled, 1 -> enabled
                     enable_motors = 1;
                     if (!servo_D0.isEnabled())
                         servo_D0.enable();
                     if (!servo_D1.isEnabled())
                         servo_D1.enable();
+                    //Linefollower sieht Line? -->
+                    robot_state = RobotState::PLATFORM;
                     break;
                 }
                 case RobotState::PLATFORM: {
+                    printf("PLATFORM\n");
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
+                    if(us_distance_cm < 25){
+                        robot_state = RobotState::ROPEPREPARE;
+                    }
                     break;
                 }
                 case RobotState::ROPEPREPARE: {
                     //ANPASSEN
+                    printf("ROPEPREPARE\n");
                     servo_D0.setPulseWidth(1.0f);
                     servo_D1.setPulseWidth(1.0f);
+                    //3 SEK ZEIT EINBAUEN
+                    robot_state = RobotState::ROPE;
                     break;
                 }
                 case RobotState::ROPE: {
+                    printf("ROPE\n");
+                    //ANPASSEN
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
+                    if(us_distance_cm < 15){
+                        robot_state = RobotState::OBSTACLEPREPARE;
+                    }
                     break;
                 }
                 case RobotState::OBSTACLEPREPARE: {
+                    printf("OBSTACLEPREPARE\n");
                     //ANPASSEN
-                    servo_D0.setPulseWidth(0.0f);
-                    servo_D1.setPulseWidth(0.0f);
+                    if(us_distance_cm > 10){
+                        servo_D0.setPulseWidth(0.0f);
+                        servo_D1.setPulseWidth(0.0f);
+                        robot_state = RobotState::OBSTACLE;
+                    }
+                    if(us_distance_cm < 10){
+                        servo_D0.setPulseWidth(0.0f);
+                        servo_D1.setPulseWidth(0.0f);
+                        robot_state = RobotState::PLATFORM;
+                    }
                     break;
                 }
                 case RobotState::OBSTACLE: {
-
+                    printf("OBSTACLE\n");
+                    motor_M1.setVelocity(motor_M1.getMaxVelocity());
+                    motor_M2.setVelocity(motor_M2.getMaxVelocity());
+                    if(us_distance_cm < 10){
+                        robot_state = RobotState::ROPEPREPARE;
+                    }
                     break;
                 }
                 case RobotState::SLEEP: {
-
+                    printf("SLEEP\n");
                     break;
                 }
                 case RobotState::EMERGENCY: {
+                    printf("EMERGENCY\n");
                     //steppermotor zurück auf 0.0f
                     //motoren ausschalten
 
@@ -197,6 +236,8 @@ int main()
 
         // toggling the user led
         user_led = !user_led;
+
+        printf("US distance cm: %f \n", us_distance_cm);
 
         // read timer and make the main thread sleep for the remaining time span (non blocking)
         int main_task_elapsed_time_ms = duration_cast<milliseconds>(main_task_timer.elapsed_time()).count();

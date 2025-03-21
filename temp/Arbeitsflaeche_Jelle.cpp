@@ -117,6 +117,10 @@ int main()
     // limit max. acceleration to half of the default acceleration
     motor_M3.setMaxAcceleration(motor_M3.getMaxAcceleration() * 0.5f);
 
+    // ultra sonic sensor
+    UltrasonicSensor us_sensor(PB_D3);
+    float us_distance_cm = 0.0f;
+
     // start timer
     main_task_timer.start();
 
@@ -126,6 +130,11 @@ int main()
 
         if (do_execute_main_task) {
             // state machine
+
+            const float us_distance_cm_candidate = us_sensor.read();
+            if (us_distance_cm_candidate > 0.0f)
+                us_distance_cm = us_distance_cm_candidate;
+            
             switch (robot_state) {
                 case RobotState::INITIAL: {
                     // enable hardwaredriver DC motors: 0 -> disabled, 1 -> enabled
@@ -134,32 +143,55 @@ int main()
                         servo_D0.enable();
                     if (!servo_D1.isEnabled())
                         servo_D1.enable();
+                    //Linefollower sieht Line? -->
+                    RobotState::PLATFORM;
                     break;
                 }
                 case RobotState::PLATFORM: {
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
+                    if(us_distance_cm == 25){
+                        RobotState::ROPEPREPARE;
+                    }
                     break;
                 }
                 case RobotState::ROPEPREPARE: {
                     //ANPASSEN
                     servo_D0.setPulseWidth(1.0f);
                     servo_D1.setPulseWidth(1.0f);
+                    //3 SEK ZEIT EINBAUEN
+                    RobotState::ROPE;
                     break;
                 }
                 case RobotState::ROPE: {
+                    //ANPASSEN
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
+                    if(us_distance_cm == 15){
+                        RobotState::OBSTACLEPREPARE;
+                    }
                     break;
                 }
                 case RobotState::OBSTACLEPREPARE: {
                     //ANPASSEN
-                    servo_D0.setPulseWidth(0.0f);
-                    servo_D1.setPulseWidth(0.0f);
+                    if(us_distance_cm > 10){
+                        servo_D0.setPulseWidth(0.0f);
+                        servo_D1.setPulseWidth(0.0f);
+                        RobotState::OBSTACLE;
+                    }
+                    if(us_distance_cm < 10){
+                        servo_D0.setPulseWidth(0.0f);
+                        servo_D1.setPulseWidth(0.0f);
+                        RobotState::PLATFORM;
+                    }
                     break;
                 }
                 case RobotState::OBSTACLE: {
-
+                    motor_M1.setVelocity(motor_M1.getMaxVelocity());
+                    motor_M2.setVelocity(motor_M2.getMaxVelocity());
+                    if(us_distance_cm == 10){
+                        RobotState::ROPEPREPARE;
+                    }
                     break;
                 }
                 case RobotState::SLEEP: {
