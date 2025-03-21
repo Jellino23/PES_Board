@@ -78,6 +78,13 @@ int main()
     servo_D0.setMaxAcceleration(0.3f);
     servo_D1.setMaxAcceleration(0.3f);
 
+    // variables to move the servo, this is just an example
+    float servo_input = 0.0f;
+    int servo_counter = 0; // define servo counter, this is an additional variable
+                           // used to command the servo
+    const int loops_per_seconds = static_cast<int>(ceilf(1.0f / (0.001f * static_cast<float>(main_task_period_ms))));
+
+
     // create object to enable power electronics for the dc motors
     DigitalOut enable_motors(PB_ENABLE_DCMOTORS);
 
@@ -137,6 +144,7 @@ int main()
             
             switch (robot_state) {
                 case RobotState::INITIAL: {
+                    printf("INITIAL\n");
                     // enable hardwaredriver DC motors: 0 -> disabled, 1 -> enabled
                     enable_motors = 1;
                     if (!servo_D0.isEnabled())
@@ -144,61 +152,74 @@ int main()
                     if (!servo_D1.isEnabled())
                         servo_D1.enable();
                     //Linefollower sieht Line? -->
-                    RobotState::PLATFORM;
+                    robot_state = RobotState::PLATFORM;
                     break;
                 }
                 case RobotState::PLATFORM: {
+                    printf("PLATFORM\n");
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
-                    if(us_distance_cm == 25){
-                        RobotState::ROPEPREPARE;
+                    if(us_distance_cm < 25 && us_distance_cm > 20){
+                        robot_state = RobotState::ROPEPREPARE;
                     }
                     break;
                 }
                 case RobotState::ROPEPREPARE: {
                     //ANPASSEN
-                    servo_D0.setPulseWidth(1.0f);
-                    servo_D1.setPulseWidth(1.0f);
-                    //3 SEK ZEIT EINBAUEN
-                    RobotState::ROPE;
+                    printf("ROPEPREPARE\n");
+                    servo_D0.setPulseWidth(servo_input);
+                    servo_D1.setPulseWidth(servo_input);
+
+                    // calculate inputs for the servos for the next cycle
+                    if ((servo_input < 1.0f) &&                     // constrain servo_input to be < 1.0f
+                        (servo_counter % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
+                        (servo_counter != 0))                       // avoid servo_counter = 0
+                        servo_input += 0.005f;
+                    servo_counter++;
+                    //3 SEK ZEIT EINBAUEN??
+                    robot_state = RobotState::ROPE;
                     break;
                 }
                 case RobotState::ROPE: {
+                    printf("ROPE\n");
                     //ANPASSEN
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
-                    if(us_distance_cm == 15){
-                        RobotState::OBSTACLEPREPARE;
+                    if(us_distance_cm < 15){
+                        robot_state = RobotState::OBSTACLEPREPARE;
                     }
                     break;
                 }
                 case RobotState::OBSTACLEPREPARE: {
+                    printf("OBSTACLEPREPARE\n");
                     //ANPASSEN
                     if(us_distance_cm > 10){
                         servo_D0.setPulseWidth(0.0f);
                         servo_D1.setPulseWidth(0.0f);
-                        RobotState::OBSTACLE;
+                        robot_state = RobotState::OBSTACLE;
                     }
                     if(us_distance_cm < 10){
                         servo_D0.setPulseWidth(0.0f);
                         servo_D1.setPulseWidth(0.0f);
-                        RobotState::PLATFORM;
+                        robot_state = RobotState::PLATFORM;
                     }
                     break;
                 }
                 case RobotState::OBSTACLE: {
+                    printf("OBSTACLE\n");
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
-                    if(us_distance_cm == 10){
-                        RobotState::ROPEPREPARE;
+                    if(us_distance_cm < 10){
+                        robot_state = RobotState::ROPEPREPARE;
                     }
                     break;
                 }
                 case RobotState::SLEEP: {
-
+                    printf("SLEEP\n");
                     break;
                 }
                 case RobotState::EMERGENCY: {
+                    printf("EMERGENCY\n");
                     //steppermotor zurück auf 0.0f
                     //motoren ausschalten
 
@@ -229,6 +250,8 @@ int main()
 
         // toggling the user led
         user_led = !user_led;
+
+        printf("US distance cm: %f \n", us_distance_cm);
 
         // read timer and make the main thread sleep for the remaining time span (non blocking)
         int main_task_elapsed_time_ms = duration_cast<milliseconds>(main_task_timer.elapsed_time()).count();

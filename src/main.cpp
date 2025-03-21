@@ -78,6 +78,13 @@ int main()
     servo_D0.setMaxAcceleration(0.3f);
     servo_D1.setMaxAcceleration(0.3f);
 
+    // variables to move the servo, this is just an example
+    float servo_input = 0.0f;
+    int servo_counter = 0; // define servo counter, this is an additional variable
+                           // used to command the servo
+    const int loops_per_seconds = static_cast<int>(ceilf(1.0f / (0.001f * static_cast<float>(main_task_period_ms))));
+
+
     // create object to enable power electronics for the dc motors
     DigitalOut enable_motors(PB_ENABLE_DCMOTORS);
 
@@ -152,18 +159,36 @@ int main()
                     printf("PLATFORM\n");
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
-                    if(us_distance_cm < 25){
+                    if(us_distance_cm < 25 && us_distance_cm > 20){
                         robot_state = RobotState::ROPEPREPARE;
+                    }
+                    if(us_distance_cm < 2){
+                        robot_state = RobotState::SLEEP;
                     }
                     break;
                 }
                 case RobotState::ROPEPREPARE: {
                     //ANPASSEN
                     printf("ROPEPREPARE\n");
-                    servo_D0.setPulseWidth(1.0f);
-                    servo_D1.setPulseWidth(1.0f);
-                    //3 SEK ZEIT EINBAUEN
-                    robot_state = RobotState::ROPE;
+                    /*
+                    Problem: Motor hört nicht auf zu drehen, wie bringt man motor zum stoppen?
+                    */
+                    motor_M1.setVelocity(0.0f);
+                    motor_M2.setVelocity(0.0f);
+                    servo_D0.setPulseWidth(servo_input);
+                    servo_D1.setPulseWidth(servo_input);
+                    
+                    // calculate inputs for the servos for the next cycle
+                    if ((servo_input < 1.0f) &&                     // constrain servo_input to be < 1.0f
+                        (servo_counter % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
+                        (servo_counter != 0))                       // avoid servo_counter = 0
+                        servo_input += 0.1f;
+                    servo_counter++;
+                    
+                    if(servo_input > 0.95f){
+                        servo_input = 1.0f;
+                        robot_state = RobotState::ROPE;
+                    }
                     break;
                 }
                 case RobotState::ROPE: {
@@ -171,25 +196,39 @@ int main()
                     //ANPASSEN
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
-                    if(us_distance_cm < 15){
+                    if(us_distance_cm < 15 && us_distance_cm > 12){
+                        robot_state = RobotState::OBSTACLEPREPARE;
+                    }
+                    if(us_distance_cm < 6 && us_distance_cm > 4){
                         robot_state = RobotState::OBSTACLEPREPARE;
                     }
                     break;
                 }
                 case RobotState::OBSTACLEPREPARE: {
                     printf("OBSTACLEPREPARE\n");
-                    //ANPASSEN
-                    if(us_distance_cm > 10){
-                        servo_D0.setPulseWidth(0.0f);
-                        servo_D1.setPulseWidth(0.0f);
-                        robot_state = RobotState::OBSTACLE;
+                    /*
+                    Problem: Motor hört nicht auf zu drehen, wie bringt man motor zum stoppen?
+                    */
+                    motor_M1.setVelocity(0.0f);
+                    motor_M2.setVelocity(0.0f);
+                    servo_D0.setPulseWidth(servo_input);
+                    servo_D1.setPulseWidth(servo_input);
+                    if ((servo_input > 0.0f) &&                     // constrain servo_input to be < 1.0f
+                        (servo_counter % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
+                        (servo_counter != 0))                       // avoid servo_counter = 0
+                        servo_input -= 0.1f;
+                    servo_counter++;
+                        //3 SEK ZEIT EINBAUEN??
+                    if(servo_input < 0.05f){
+                        servo_input = 0.0f;
+                        if(us_distance_cm > 10){
+                            robot_state = RobotState::OBSTACLE;
+                        }
+                        if(us_distance_cm < 6){
+                            robot_state = RobotState::PLATFORM;
+                        }
                     }
-                    if(us_distance_cm < 10){
-                        servo_D0.setPulseWidth(0.0f);
-                        servo_D1.setPulseWidth(0.0f);
-                        robot_state = RobotState::PLATFORM;
-                    }
-                    break;
+                break;
                 }
                 case RobotState::OBSTACLE: {
                     printf("OBSTACLE\n");
