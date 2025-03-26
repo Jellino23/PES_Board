@@ -63,10 +63,10 @@ int main()
     // minimal pulse width and maximal pulse width obtained from the servo calibration process
     // reely S0090 
     //ANPASSEN
-    float servo_D0_ang_min = 0.0325f;
-    float servo_D0_ang_max = 0.1175f;
-    float servo_D1_ang_min = 0.0325f;
-    float servo_D1_ang_max = 0.1175f;
+    float servo_D0_ang_min = 0.0310f;
+    float servo_D0_ang_max = 0.118f;
+    float servo_D1_ang_min = 0.0315f;
+    float servo_D1_ang_max = 0.122f;
 
     // servo.setPulseWidth: before calibration (0,1) -> (min pwm, max pwm)
     // servo.setPulseWidth: after calibration (0,1) -> (servo_D0_ang_min, servo_D0_ang_max)

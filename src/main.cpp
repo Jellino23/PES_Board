@@ -63,10 +63,10 @@ int main()
     // minimal pulse width and maximal pulse width obtained from the servo calibration process
     // reely S0090 
     //ANPASSEN
-    float servo_D0_ang_min = 0.0325f;
-    float servo_D0_ang_max = 0.1175f;
-    float servo_D1_ang_min = 0.0325f;
-    float servo_D1_ang_max = 0.1175f;
+    float servo_D0_ang_min = 0.0310f;
+    float servo_D0_ang_max = 0.118f;
+    float servo_D1_ang_min = 0.0315f;
+    float servo_D1_ang_max = 0.122f;
 
     // servo.setPulseWidth: before calibration (0,1) -> (min pwm, max pwm)
     // servo.setPulseWidth: after calibration (0,1) -> (servo_D0_ang_min, servo_D0_ang_max)
@@ -215,12 +215,13 @@ int main()
                     motor_M2.setVelocity(0.0f);
                     servo_D0.setPulseWidth(servo_input);
                     servo_D1.setPulseWidth(servo_input);
+                    
                     if ((servo_input > 0.0f) &&                     // constrain servo_input to be < 1.0f
                         (servo_counter % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
                         (servo_counter != 0))                       // avoid servo_counter = 0
                         servo_input -= 0.1f;
                     servo_counter++;
-                        //3 SEK ZEIT EINBAUEN??
+
                     if(servo_input < 0.05f){
                         servo_input = 0.0f;
                         if(us_distance_cm > 10){
