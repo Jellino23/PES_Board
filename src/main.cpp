@@ -84,7 +84,6 @@ int main()
                            // used to command the servo
     const int loops_per_seconds = static_cast<int>(ceilf(1.0f / (0.001f * static_cast<float>(main_task_period_ms))));
 
-
     // create object to enable power electronics for the dc motors
     DigitalOut enable_motors(PB_ENABLE_DCMOTORS);
 
@@ -113,16 +112,12 @@ int main()
     // limit max. acceleration to half of the default acceleration
     motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.5f);
 
-    // Motor M3
-    const float gear_ratio_M3 = 100.0f; // gear ratio
-    const float kn_M3 = 140.0f / 12.0f;  // motor constant [rpm/V]
-    DCMotor motor_M3(PB_PWM_M3, PB_ENC_A_M3, PB_ENC_B_M3, gear_ratio_M3, kn_M3, voltage_max);
-    // limit max. velocity to half physical possible velocity
-    motor_M3.setMaxVelocity(motor_M3.getMaxPhysicalVelocity() * 0.5f);
-    // enable the motion planner for smooth movements
-    motor_M3.enableMotionPlanner();
-    // limit max. acceleration to half of the default acceleration
-    motor_M3.setMaxAcceleration(motor_M3.getMaxAcceleration() * 0.5f);
+
+    // mechanical button
+    DigitalIn mechanical_button(PC_5); // create DigitalIn object to evaluate mechanical button, you
+    // need to specify the mode for proper usage, see below
+    mechanical_button.mode(PullUp);    // sets pullup between pin and 3.3 V, so that there
+    // is a defined potential
 
     // ultra sonic sensor
     UltrasonicSensor us_sensor(PB_D3);
@@ -139,6 +134,10 @@ int main()
 
             // visual feedback that the main task is executed, setting this once would actually be enough
             led1 = 1;
+
+            if (mechanical_button.read()){
+                int challenge_1 = true;
+            }
 
             //read distance with us_sensor
             const float us_distance_cm_candidate = us_sensor.read();
@@ -259,11 +258,13 @@ int main()
                     servo_D0.setPulseWidth(0.0f);
                     servo_D1.setPulseWidth(0.0f);
 
-                    motor_M3.disableMotionPlanner();
-                    motor_M3.setRotation(0.0f);
-                    if (motor_M3.getRotation() < 0.01f)
+                    motor_M1.disableMotionPlanner();
+                    motor_M1.setRotation(0.0f);
+                    motor_M2.disableMotionPlanner();
+                    motor_M2.setRotation(0.0f);
+                    if (motor_M1.getRotation() < 0.1 && motor_M2.getRotation() < 0.1 )
                         toggle_do_execute_main_fcn();
-
+                    
 
                     break;
                 }
