@@ -158,9 +158,9 @@ int main()
                     // enable hardwaredriver DC motors: 0 -> disabled, 1 -> enabled
                     enable_motors = 1;
                     if (!servo_D0.isEnabled())
-                        servo_D0.enable();
+                        servo_D0.enable(servo_input_left);
                     if (!servo_D1.isEnabled())
-                        servo_D1.enable();
+                        servo_D1.enable(servo_input_right);
                     //Linefollower sieht Line? -->
                     robot_state = RobotState::PLATFORM;
                     break;
