@@ -13,7 +13,7 @@
 #include "DCMotor.h"
 #include "FastPWM.h"
 #include "Servo.h"
-#include "LineFollower.h"
+//#include "LineFollower.h"
 
 bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
                                    // decides whether to execute the main task or not
@@ -127,15 +127,15 @@ int main()
     //linefollower
 
     // line follower, tune max. vel rps to your needs
-    const float d_wheel = 0.0372f; // wheel diameter in meters
-    const float b_wheel = 0.156f;  // wheelbase, distance from wheel to wheel in meters
-    const float bar_dist = 0.114f; // distance from wheel axis to leds on sensor bar / array in meters
-    LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M2.getMaxPhysicalVelocity());
+    //const float d_wheel = 0.0372f; // wheel diameter in meters
+    //const float b_wheel = 0.156f;  // wheelbase, distance from wheel to wheel in meters
+    //const float bar_dist = 0.114f; // distance from wheel axis to leds on sensor bar / array in meters
+    //LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M2.getMaxPhysicalVelocity());
     
     // nonlinear controller gains, tune to your needs (linefollower)
-    const float Kp = 1.2f * 2.0f;
-    const float Kp_nl = 1.2f * 17.0f;
-    lineFollower.setRotationalVelocityGain(Kp, Kp_nl);
+    //const float Kp = 1.2f * 2.0f;
+    //const float Kp_nl = 1.2f * 17.0f;
+    //lineFollower.setRotationalVelocityGain(Kp, Kp_nl);
 
     // start timer
     main_task_timer.start();
@@ -173,8 +173,10 @@ int main()
                 }
                 case RobotState::PLATFORM: {
                     printf("PLATFORM\n");
-                    motor_M1.setVelocity(lineFollower.getRightWheelVelocity());
-                    motor_M2.setVelocity(lineFollower.getLeftWheelVelocity());
+                    //motor_M1.setVelocity(lineFollower.getRightWheelVelocity());
+                    //motor_M2.setVelocity(lineFollower.getLeftWheelVelocity());
+                    motor_M1.setVelocity(motor_M1.getMaxVelocity());
+                    motor_M2.setVelocity(motor_M2.getMaxVelocity());
                     if(us_distance_cm < 25 && us_distance_cm > 20){
                         robot_state = RobotState::ROPEPREPARE;
                     }
