@@ -13,6 +13,7 @@
 #include "DCMotor.h"
 #include "FastPWM.h"
 #include "Servo.h"
+//#include "LineFollower.h"
 
 bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
                                    // decides whether to execute the main task or not
@@ -79,9 +80,11 @@ int main()
     servo_D1.setMaxAcceleration(0.3f);
 
     // variables to move the servo, this is just an example
-    float servo_input = 0.0f;
-    int servo_counter = 0; // define servo counter, this is an additional variable
+    float servo_input_left = 0.5f;
+    float servo_input_right = 0.5f;
+    int servo_counter_left = 0; // define servo counter, this is an additional variable
                            // used to command the servo
+    int servo_counter_right = 0;
     const int loops_per_seconds = static_cast<int>(ceilf(1.0f / (0.001f * static_cast<float>(main_task_period_ms))));
 
     // create object to enable power electronics for the dc motors
@@ -123,6 +126,19 @@ int main()
     UltrasonicSensor us_sensor(PB_D3);
     float us_distance_cm = 0.0f;
 
+    //linefollower
+
+    // line follower, tune max. vel rps to your needs
+    //const float d_wheel = 0.0372f; // wheel diameter in meters
+    //const float b_wheel = 0.156f;  // wheelbase, distance from wheel to wheel in meters
+    //const float bar_dist = 0.114f; // distance from wheel axis to leds on sensor bar / array in meters
+    //LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M2.getMaxPhysicalVelocity());
+    
+    // nonlinear controller gains, tune to your needs (linefollower)
+    //const float Kp = 1.2f * 2.0f;
+    //const float Kp_nl = 1.2f * 17.0f;
+    //lineFollower.setRotationalVelocityGain(Kp, Kp_nl);
+
     // start timer
     main_task_timer.start();
 
@@ -139,6 +155,11 @@ int main()
                 int challenge_1 = true;
             }
 
+            //Variablen wo dass das Gewicht ist
+            float weight_down_left = 1.0f;
+            float weight_up_left = 0.5f;
+            float weight_down_right = 0.0f;
+            float weight_up_right = 0.5f;
             //read distance with us_sensor
             const float us_distance_cm_candidate = us_sensor.read();
             if (us_distance_cm_candidate > 0.0f)        //only valid measurments are accepted
@@ -159,6 +180,8 @@ int main()
                 }
                 case RobotState::PLATFORM: {
                     printf("PLATFORM\n");
+                    //motor_M1.setVelocity(lineFollower.getRightWheelVelocity());
+                    //motor_M2.setVelocity(lineFollower.getLeftWheelVelocity());
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
                     if(us_distance_cm < 25 && us_distance_cm > 20){
@@ -172,23 +195,27 @@ int main()
                 case RobotState::ROPEPREPARE: {
                     //ANPASSEN
                     printf("ROPEPREPARE\n");
-                    /*
-                    Problem: Motor hört nicht auf zu drehen, wie bringt man motor zum stoppen?
-                    */
                     motor_M1.setVelocity(0.0f);
                     motor_M2.setVelocity(0.0f);
-                    servo_D0.setPulseWidth(servo_input);
-                    servo_D1.setPulseWidth(servo_input);
+                    servo_D0.setPulseWidth(servo_input_left);
+                    servo_D1.setPulseWidth(servo_input_right);
                     
                     // calculate inputs for the servos for the next cycle
-                    if ((servo_input < 1.0f) &&                     // constrain servo_input to be < 1.0f
-                        (servo_counter % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
-                        (servo_counter != 0))                       // avoid servo_counter = 0
-                        servo_input += 0.1f;
-                    servo_counter++;
+                    if ((servo_input_right > 0.0f) &&                     // constrain servo_input to be < 1.0f
+                        (servo_counter_right % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
+                        (servo_counter_right != 0))                       // avoid servo_counter = 0
+                        servo_input_right -= 0.1f;
+                    servo_counter_right++;
 
-                    if(servo_input > 0.95f){
-                        servo_input = 1.0f;
+                    if ((servo_input_left < 1.0f) &&                     // constrain servo_input to be < 1.0f
+                        (servo_counter_left % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
+                        (servo_counter_left != 0))                       // avoid servo_counter = 0
+                        servo_input_left += 0.1f;
+                    servo_counter_left++;
+
+                    if(servo_input_right < weight_down_right && servo_counter_left > weight_down_left){
+                        servo_input_right = weight_down_right;
+                        servo_input_left = weight_down_left;
                         robot_state = RobotState::ROPE;
                     }
                     break;
@@ -213,16 +240,24 @@ int main()
                     */
                     motor_M1.setVelocity(0.0f);
                     motor_M2.setVelocity(0.0f);
-                    servo_D0.setPulseWidth(servo_input);
-                    servo_D1.setPulseWidth(servo_input);
-                    if ((servo_input > 0.0f) &&                     // constrain servo_input to be < 1.0f
-                        (servo_counter % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
-                        (servo_counter != 0))                       // avoid servo_counter = 0
-                        servo_input -= 0.1f;
-                    servo_counter++;
-                        //3 SEK ZEIT EINBAUEN??
-                    if(servo_input < 0.05f){
-                        servo_input = 0.0f;
+                    servo_D0.setPulseWidth(servo_input_left);
+                    servo_D1.setPulseWidth(servo_input_right);
+                    
+                    if ((servo_input_left > 0.0f) &&                     // constrain servo_input to be < 1.0f
+                        (servo_counter_left % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
+                        (servo_counter_left != 0))                       // avoid servo_counter = 0
+                        servo_input_left -= 0.1f;
+                    servo_counter_left++;
+                    
+                    if ((servo_input_right < 1.0f) &&                     // constrain servo_input to be < 1.0f
+                        (servo_counter_right % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
+                        (servo_counter_right != 0))                       // avoid servo_counter = 0
+                        servo_input_right += 0.1f;
+                    servo_counter_right++;
+
+                    if(servo_input_right > weight_up_right && servo_input_left < weight_up_left){
+                        servo_input_left = weight_up_left;
+                        servo_input_right = weight_up_right;
                         if(us_distance_cm > 10){
                             robot_state = RobotState::OBSTACLE;
                         }
@@ -255,8 +290,8 @@ int main()
                     // then reset the system
                     servo_D0.setMaxAcceleration(1.0f);
                     servo_D1.setMaxAcceleration(1.0f);
-                    servo_D0.setPulseWidth(0.0f);
-                    servo_D1.setPulseWidth(0.0f);
+                    servo_D0.setPulseWidth(weight_up_left);
+                    servo_D1.setPulseWidth(weight_up_right);
 
                     motor_M1.disableMotionPlanner();
                     motor_M1.setRotation(0.0f);
