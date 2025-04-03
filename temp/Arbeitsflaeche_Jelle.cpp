@@ -156,10 +156,10 @@ int main()
             }
 
             //Variablen wo dass das Gewicht ist
-            float weight_down_left = 1.0f;
-            float weight_up_left = 0.5f;
-            float weight_down_right = 0.0f;
-            float weight_up_right = 0.5f;
+            float weight_down_left = 0.6f;
+            float weight_up_left = 0.08f;
+            float weight_down_right = 0.2f;
+            float weight_up_right = 0.73f;
             //read distance with us_sensor
             const float us_distance_cm_candidate = us_sensor.read();
             if (us_distance_cm_candidate > 0.0f)        //only valid measurments are accepted
@@ -171,9 +171,9 @@ int main()
                     // enable hardwaredriver DC motors: 0 -> disabled, 1 -> enabled
                     enable_motors = 1;
                     if (!servo_D0.isEnabled())
-                        servo_D0.enable();
+                        servo_D0.enable(servo_input_left);
                     if (!servo_D1.isEnabled())
-                        servo_D1.enable();
+                        servo_D1.enable(servo_input_right);
                     //Linefollower sieht Line? -->
                     robot_state = RobotState::PLATFORM;
                     break;
@@ -329,6 +329,8 @@ int main()
         user_led = !user_led;
 
         printf("US distance cm: %f \n", us_distance_cm);
+        printf("Servoinput links: %f \n", servo_input_left);
+        printf("Servoinput rechts: %f \n", servo_input_right);
 
         // read timer and make the main thread sleep for the remaining time span (non blocking)
         int main_task_elapsed_time_ms = duration_cast<milliseconds>(main_task_timer.elapsed_time()).count();

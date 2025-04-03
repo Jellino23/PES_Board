@@ -156,10 +156,10 @@ int main()
             }
 
             //Variablen wo dass das Gewicht ist
-            float weight_down_left = 1.0f;
-            float weight_up_left = 0.5f;
-            float weight_down_right = 0.0f;
-            float weight_up_right = 0.5f;
+            float weight_down_left = 0.6f;
+            float weight_up_left = 0.08f;
+            float weight_down_right = 0.2f;
+            float weight_up_right = 0.73f;
             //read distance with us_sensor
             const float us_distance_cm_candidate = us_sensor.read();
             if (us_distance_cm_candidate > 0.0f)        //only valid measurments are accepted
