@@ -87,6 +87,15 @@ int main()
     int servo_counter_right = 0;
     const int loops_per_seconds = static_cast<int>(ceilf(1.0f / (0.001f * static_cast<float>(main_task_period_ms))));
 
+    //Variablen wo dass das Gewicht ist
+    float weight_down_left = 0.6f;
+    float weight_up_left = 0.08f;
+    float weight_down_right = 0.2f;
+    float weight_up_right = 0.73f;
+
+    servo_input_left = weight_up_left;
+    servo_input_right = weight_up_right;
+
     // create object to enable power electronics for the dc motors
     DigitalOut enable_motors(PB_ENABLE_DCMOTORS);
 
@@ -124,8 +133,9 @@ int main()
 
     // ultra sonic sensor
     UltrasonicSensor us_sensor(PB_D3);
-    float us_distance_cm = 0.0f;
+    float us_distance_cm = 200.0f;
 
+    int challenge_1 = false;
     //linefollower
 
     // line follower, tune max. vel rps to your needs
@@ -152,17 +162,13 @@ int main()
             led1 = 1;
 
             if (mechanical_button.read()){
-                int challenge_1 = true;
+                challenge_1 = true;
             }
 
-            //Variablen wo dass das Gewicht ist
-            float weight_down_left = 0.6f;
-            float weight_up_left = 0.08f;
-            float weight_down_right = 0.2f;
-            float weight_up_right = 0.73f;
+
             //read distance with us_sensor
             const float us_distance_cm_candidate = us_sensor.read();
-            if (us_distance_cm_candidate > 0.0f)        //only valid measurments are accepted
+            if (us_distance_cm_candidate > 0.0f && us_distance_cm_candidate < us_distance_cm)        //only valid measurments are accepted
                 us_distance_cm = us_distance_cm_candidate;
             
             switch (robot_state) {
@@ -171,9 +177,9 @@ int main()
                     // enable hardwaredriver DC motors: 0 -> disabled, 1 -> enabled
                     enable_motors = 1;
                     if (!servo_D0.isEnabled())
-                        servo_D0.enable(servo_input_left);
+                        servo_D0.enable(weight_up_left);
                     if (!servo_D1.isEnabled())
-                        servo_D1.enable(servo_input_right);
+                        servo_D1.enable(weight_up_right);
                     //Linefollower sieht Line? -->
                     robot_state = RobotState::PLATFORM;
                     break;
@@ -184,6 +190,8 @@ int main()
                     //motor_M2.setVelocity(lineFollower.getLeftWheelVelocity());
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
+                    servo_D0.setPulseWidth(weight_up_left);
+                    servo_D1.setPulseWidth(weight_up_right);
                     if(us_distance_cm < 25 && us_distance_cm > 20){
                         robot_state = RobotState::ROPEPREPARE;
                     }
@@ -197,9 +205,6 @@ int main()
                     printf("ROPEPREPARE\n");
                     motor_M1.setVelocity(0.0f);
                     motor_M2.setVelocity(0.0f);
-                    servo_D0.setPulseWidth(servo_input_left);
-                    servo_D1.setPulseWidth(servo_input_right);
-                    
                     // calculate inputs for the servos for the next cycle
                     if ((servo_input_right > 0.0f) &&                     // constrain servo_input to be < 1.0f
                         (servo_counter_right % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
@@ -218,6 +223,8 @@ int main()
                         servo_input_left = weight_down_left;
                         robot_state = RobotState::ROPE;
                     }
+                    servo_D0.setPulseWidth(servo_input_left);
+                    servo_D1.setPulseWidth(servo_input_right);
                     break;
                 }
                 case RobotState::ROPE: {
@@ -225,7 +232,7 @@ int main()
                     //ANPASSEN
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
-                    if(us_distance_cm < 15 && us_distance_cm > 12){
+                    if(us_distance_cm < 15 && us_distance_cm > 12 && challenge_1 == false){
                         robot_state = RobotState::OBSTACLEPREPARE;
                     }
                     if(us_distance_cm < 6 && us_distance_cm > 4){
@@ -240,8 +247,6 @@ int main()
                     */
                     motor_M1.setVelocity(0.0f);
                     motor_M2.setVelocity(0.0f);
-                    servo_D0.setPulseWidth(servo_input_left);
-                    servo_D1.setPulseWidth(servo_input_right);
                     
                     if ((servo_input_left > 0.0f) &&                     // constrain servo_input to be < 1.0f
                         (servo_counter_left % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
@@ -265,13 +270,15 @@ int main()
                             robot_state = RobotState::PLATFORM;
                         }
                     }
-                break;
+                    servo_D0.setPulseWidth(servo_input_left);
+                    servo_D1.setPulseWidth(servo_input_right);
+                    break;
                 }
                 case RobotState::OBSTACLE: {
                     printf("OBSTACLE\n");
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
-                    if(us_distance_cm < 10){
+                    if(us_distance_cm < 10 && challenge_1 == false){
                         robot_state = RobotState::ROPEPREPARE;
                     }
                     break;
@@ -319,9 +326,8 @@ int main()
                 servo_D0.disable();
                 servo_D1.disable();
                 enable_motors = 0;
-                //us_distance_cm = 0.0f;
+                us_distance_cm = 200.0f;
                 robot_state = RobotState::INITIAL;
-
             }
         }
 
