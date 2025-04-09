@@ -13,7 +13,7 @@
 #include "DCMotor.h"
 #include "FastPWM.h"
 #include "Servo.h"
-//#include "LineFollower.h"
+#include "LineFollower.h"
 
 bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
                                    // decides whether to execute the main task or not
@@ -109,7 +109,7 @@ int main()
     // limit max. velocity to half physical possible velocity
     motor_M1.setMaxVelocity(motor_M1.getMaxPhysicalVelocity() * 0.5f);
     // enable the motion planner for smooth movements
-    motor_M1.enableMotionPlanner();
+    // motor_M1.enableMotionPlanner();
     // limit max. acceleration to half of the default acceleration
     motor_M1.setMaxAcceleration(motor_M1.getMaxAcceleration() * 0.5f);
 
@@ -120,7 +120,7 @@ int main()
     // limit max. velocity to half physical possible velocity
     motor_M2.setMaxVelocity(motor_M2.getMaxPhysicalVelocity() * 0.5f);
     // enable the motion planner for smooth movements
-    motor_M2.enableMotionPlanner();
+    // motor_M2.enableMotionPlanner();
     // limit max. acceleration to half of the default acceleration
     motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.5f);
 
@@ -141,15 +141,15 @@ int main()
     //linefollower
 
     // line follower, tune max. vel rps to your needs
-    //const float d_wheel = 0.0372f; // wheel diameter in meters
-    //const float b_wheel = 0.156f;  // wheelbase, distance from wheel to wheel in meters
-    //const float bar_dist = 0.114f; // distance from wheel axis to leds on sensor bar / array in meters
-    //LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M2.getMaxPhysicalVelocity());
+    const float d_wheel = 0.046f; // wheel diameter in meters
+    const float b_wheel = 0.153f;  // wheelbase, distance from wheel to wheel in meters
+    const float bar_dist = 0.09f; // distance from wheel axis to leds on sensor bar / array in meters
+    LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M2.getMaxPhysicalVelocity());
     
     // nonlinear controller gains, tune to your needs (linefollower)
-    //const float Kp = 1.2f * 2.0f;
-    //const float Kp_nl = 1.2f * 17.0f;
-    //lineFollower.setRotationalVelocityGain(Kp, Kp_nl);
+    const float Kp = 1.2f * 2.0f;
+    const float Kp_nl = 1.2f * 17.0f;
+    lineFollower.setRotationalVelocityGain(Kp, Kp_nl);
 
     // start timer
     main_task_timer.start();
@@ -183,6 +183,7 @@ int main()
                     if (!servo_D1.isEnabled())
                         servo_D1.enable(weight_up_right);
                     //Linefollower sieht Line? -->
+
                     robot_state = RobotState::PLATFORM;
                     break;
                 }
@@ -191,11 +192,13 @@ int main()
 
                     servo_D0.setPulseWidth(weight_up_left);
                     servo_D1.setPulseWidth(weight_up_right);
-
+                    //Auf der Startplattform
                     if(platform == 1){
-                        //motor_M1.setVelocity(lineFollower.getRightWheelVelocity());
-                        //motor_M2.setVelocity(lineFollower.getLeftWheelVelocity());
-                    }
+                        motor_M1.setVelocity(lineFollower.getRightWheelVelocity());
+                        motor_M2.setVelocity(lineFollower.getLeftWheelVelocity());
+
+                    } 
+                    //Auf der hinteren Plattform
                     if(platform == 2){
                         motor_M1.setVelocity(motor_M1.getMaxVelocity());
                         motor_M2.setVelocity(motor_M2.getMaxVelocity());
