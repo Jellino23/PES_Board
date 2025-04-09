@@ -14,6 +14,7 @@
 #include "FastPWM.h"
 #include "Servo.h"
 #include "LineFollower.h"
+#include "IRSensor.h"
 
 bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
                                    // decides whether to execute the main task or not
@@ -66,8 +67,8 @@ int main()
     //ANPASSEN
     float servo_D0_ang_min = 0.0310f;
     float servo_D0_ang_max = 0.118f;
-    float servo_D1_ang_min = 0.0325f;
-    float servo_D1_ang_max = 0.119f;
+    float servo_D1_ang_min = 0.0315f;
+    float servo_D1_ang_max = 0.122f;
 
     // servo.setPulseWidth: before calibration (0,1) -> (min pwm, max pwm)
     // servo.setPulseWidth: after calibration (0,1) -> (servo_D0_ang_min, servo_D0_ang_max)
@@ -102,7 +103,7 @@ int main()
     const float voltage_max = 12.0f; // maximum voltage of battery packs, adjust this to
     // 6.0f V if you only use one battery pack
 
-    // Motor M1 links
+    // Motor M1
     const float gear_ratio_M1 = 100.0f; // gear ratio
     const float kn_M1 = 140.0f / 12.0f;  // motor constant [rpm/V]
     DCMotor motor_M1(PB_PWM_M1, PB_ENC_A_M1, PB_ENC_B_M1, gear_ratio_M1, kn_M1, voltage_max);
@@ -113,7 +114,7 @@ int main()
     // limit max. acceleration to half of the default acceleration
     motor_M1.setMaxAcceleration(motor_M1.getMaxAcceleration() * 0.5f);
 
-    // Motor M2 rechts
+    // Motor M2
     const float gear_ratio_M2 = 100.0f; // gear ratio
     const float kn_M2 = 140.0f / 12.0f;  // motor constant [rpm/V]
     DCMotor motor_M2(PB_PWM_M2, PB_ENC_A_M2, PB_ENC_B_M2, gear_ratio_M2, kn_M2, voltage_max);
@@ -144,12 +145,20 @@ int main()
     const float d_wheel = 0.046f; // wheel diameter in meters
     const float b_wheel = 0.153f;  // wheelbase, distance from wheel to wheel in meters
     const float bar_dist = 0.09f; // distance from wheel axis to leds on sensor bar / array in meters
-    LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M1.getMaxPhysicalVelocity());
+    LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M2.getMaxPhysicalVelocity());
     
     // nonlinear controller gains, tune to your needs (linefollower)
     const float Kp = 1.2f * 2.0f;
     const float Kp_nl = 1.2f * 17.0f;
     lineFollower.setRotationalVelocityGain(Kp, Kp_nl);
+
+    // ir distance sensor with average filter and implicit calibration
+    float ir_distance_mV = 0.0f; // define a variable to store measurement (in mV)
+    float ir_distance_cm = 0.0f;
+    float ir_distance_avg = 0.0f;
+    IRSensor ir_sensor(PC_2);                      // before the calibration the read function will return the averaged mV value
+    ir_sensor.setCalibration(2.574e+04f, -29.37f); // after the calibration the read function will return the calibrated value
+
 
     // start timer
     main_task_timer.start();
@@ -194,15 +203,17 @@ int main()
                     servo_D1.setPulseWidth(weight_up_right);
                     //Auf der Startplattform
                     if(platform == 1){
-                        motor_M1.setVelocity(lineFollower.getLeftWheelVelocity());
-                        motor_M2.setVelocity(lineFollower.getRightWheelVelocity());
+                        motor_M1.setVelocity(lineFollower.getRightWheelVelocity());
+                        motor_M2.setVelocity(lineFollower.getLeftWheelVelocity());
                     }
                     if(platform == 2){
                         motor_M1.setVelocity(motor_M1.getMaxVelocity());
                         motor_M2.setVelocity(motor_M2.getMaxVelocity());
                     }
 
-                    if(us_distance_cm < 25 && us_distance_cm > 20){
+
+                    //if(us_distance_cm < 25 && us_distance_cm > 20){
+                    if(ir_distance_cm > 5){
                         platform = 2;
                         robot_state = RobotState::ROPEPREPARE;
                     }
@@ -243,12 +254,13 @@ int main()
                     //ANPASSEN
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
-                    if(us_distance_cm < 15 && us_distance_cm > 12 && challenge_1 == false){
+                    //if(us_distance_cm < 15 && us_distance_cm > 12 && challenge_1 == false){
+                    if(ir_distance_cm < 5){
                         robot_state = RobotState::OBSTACLEPREPARE;
                     }
-                    if(us_distance_cm < 6 && us_distance_cm > 4){
+                    /*if(us_distance_cm < 6 && us_distance_cm > 4){
                         robot_state = RobotState::OBSTACLEPREPARE;
-                    }
+                    }*/
                     break;
                 }
                 case RobotState::OBSTACLEPREPARE: {
@@ -338,6 +350,9 @@ int main()
                 servo_D1.disable();
                 enable_motors = 0;
                 us_distance_cm = 200.0f;
+                ir_distance_mV = 0.0f;
+                ir_distance_cm = 0.0f;
+                ir_distance_avg = 0.0f;
                 robot_state = RobotState::INITIAL;
             }
         }
