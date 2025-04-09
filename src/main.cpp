@@ -135,7 +135,9 @@ int main()
     UltrasonicSensor us_sensor(PB_D3);
     float us_distance_cm = 200.0f;
 
-    int challenge_1 = false;
+    bool challenge_1 = false;
+
+    int platform = 1;
     //linefollower
 
     // line follower, tune max. vel rps to your needs
@@ -186,13 +188,22 @@ int main()
                 }
                 case RobotState::PLATFORM: {
                     printf("PLATFORM\n");
-                    //motor_M1.setVelocity(lineFollower.getRightWheelVelocity());
-                    //motor_M2.setVelocity(lineFollower.getLeftWheelVelocity());
-                    motor_M1.setVelocity(motor_M1.getMaxVelocity());
-                    motor_M2.setVelocity(motor_M2.getMaxVelocity());
+
                     servo_D0.setPulseWidth(weight_up_left);
                     servo_D1.setPulseWidth(weight_up_right);
+
+                    if(platform == 1){
+                        //motor_M1.setVelocity(lineFollower.getRightWheelVelocity());
+                        //motor_M2.setVelocity(lineFollower.getLeftWheelVelocity());
+                    }
+                    if(platform == 2){
+                        motor_M1.setVelocity(motor_M1.getMaxVelocity());
+                        motor_M2.setVelocity(motor_M2.getMaxVelocity());
+                    }
+
+
                     if(us_distance_cm < 25 && us_distance_cm > 20){
+                        platform = 2;
                         robot_state = RobotState::ROPEPREPARE;
                     }
                     if(us_distance_cm < 2){
