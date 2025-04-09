@@ -109,7 +109,7 @@ int main()
     // limit max. velocity to half physical possible velocity
     motor_M1.setMaxVelocity(motor_M1.getMaxPhysicalVelocity() * 0.5f);
     // enable the motion planner for smooth movements
-    // motor_M1.enableMotionPlanner();
+    // //motor_M1.enableMotionPlanner();
     // limit max. acceleration to half of the default acceleration
     motor_M1.setMaxAcceleration(motor_M1.getMaxAcceleration() * 0.5f);
 
@@ -120,7 +120,7 @@ int main()
     // limit max. velocity to half physical possible velocity
     motor_M2.setMaxVelocity(motor_M2.getMaxPhysicalVelocity() * 0.5f);
     // enable the motion planner for smooth movements
-    // motor_M2.enableMotionPlanner();
+    //motor_M2.enableMotionPlanner();
     // limit max. acceleration to half of the default acceleration
     motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.5f);
 
@@ -196,9 +196,7 @@ int main()
                     if(platform == 1){
                         motor_M1.setVelocity(lineFollower.getRightWheelVelocity());
                         motor_M2.setVelocity(lineFollower.getLeftWheelVelocity());
-
-                    } 
-                    //Auf der hinteren Plattform
+                    }
                     if(platform == 2){
                         motor_M1.setVelocity(motor_M1.getMaxVelocity());
                         motor_M2.setVelocity(motor_M2.getMaxVelocity());
