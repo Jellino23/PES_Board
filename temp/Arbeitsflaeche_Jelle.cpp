@@ -13,7 +13,7 @@
 #include "DCMotor.h"
 #include "FastPWM.h"
 #include "Servo.h"
-//#include "LineFollower.h"
+#include "LineFollower.h"
 
 bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
                                    // decides whether to execute the main task or not
@@ -102,25 +102,25 @@ int main()
     const float voltage_max = 12.0f; // maximum voltage of battery packs, adjust this to
     // 6.0f V if you only use one battery pack
 
-    // Motor M1
+    // Motor M1 links
     const float gear_ratio_M1 = 100.0f; // gear ratio
     const float kn_M1 = 140.0f / 12.0f;  // motor constant [rpm/V]
     DCMotor motor_M1(PB_PWM_M1, PB_ENC_A_M1, PB_ENC_B_M1, gear_ratio_M1, kn_M1, voltage_max);
     // limit max. velocity to half physical possible velocity
     motor_M1.setMaxVelocity(motor_M1.getMaxPhysicalVelocity() * 0.5f);
     // enable the motion planner for smooth movements
-    motor_M1.enableMotionPlanner();
+    // //motor_M1.enableMotionPlanner();
     // limit max. acceleration to half of the default acceleration
     motor_M1.setMaxAcceleration(motor_M1.getMaxAcceleration() * 0.5f);
 
-    // Motor M2
+    // Motor M2 rechts
     const float gear_ratio_M2 = 100.0f; // gear ratio
     const float kn_M2 = 140.0f / 12.0f;  // motor constant [rpm/V]
     DCMotor motor_M2(PB_PWM_M2, PB_ENC_A_M2, PB_ENC_B_M2, gear_ratio_M2, kn_M2, voltage_max);
     // limit max. velocity to half physical possible velocity
     motor_M2.setMaxVelocity(motor_M2.getMaxPhysicalVelocity() * 0.5f);
     // enable the motion planner for smooth movements
-    motor_M2.enableMotionPlanner();
+    //motor_M2.enableMotionPlanner();
     // limit max. acceleration to half of the default acceleration
     motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.5f);
 
@@ -135,19 +135,21 @@ int main()
     UltrasonicSensor us_sensor(PB_D3);
     float us_distance_cm = 200.0f;
 
-    int challenge_1 = false;
+    bool challenge_1 = false;
+
+    int platform = 1;
     //linefollower
 
     // line follower, tune max. vel rps to your needs
-    //const float d_wheel = 0.0372f; // wheel diameter in meters
-    //const float b_wheel = 0.156f;  // wheelbase, distance from wheel to wheel in meters
-    //const float bar_dist = 0.114f; // distance from wheel axis to leds on sensor bar / array in meters
-    //LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M2.getMaxPhysicalVelocity());
+    const float d_wheel = 0.046f; // wheel diameter in meters
+    const float b_wheel = 0.153f;  // wheelbase, distance from wheel to wheel in meters
+    const float bar_dist = 0.09f; // distance from wheel axis to leds on sensor bar / array in meters
+    LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M1.getMaxPhysicalVelocity());
     
     // nonlinear controller gains, tune to your needs (linefollower)
-    //const float Kp = 1.2f * 2.0f;
-    //const float Kp_nl = 1.2f * 17.0f;
-    //lineFollower.setRotationalVelocityGain(Kp, Kp_nl);
+    const float Kp = 1.2f * 2.0f;
+    const float Kp_nl = 1.2f * 17.0f;
+    lineFollower.setRotationalVelocityGain(Kp, Kp_nl);
 
     // start timer
     main_task_timer.start();
@@ -181,18 +183,27 @@ int main()
                     if (!servo_D1.isEnabled())
                         servo_D1.enable(weight_up_right);
                     //Linefollower sieht Line? -->
+
                     robot_state = RobotState::PLATFORM;
                     break;
                 }
                 case RobotState::PLATFORM: {
                     printf("PLATFORM\n");
-                    //motor_M1.setVelocity(lineFollower.getRightWheelVelocity());
-                    //motor_M2.setVelocity(lineFollower.getLeftWheelVelocity());
-                    motor_M1.setVelocity(motor_M1.getMaxVelocity());
-                    motor_M2.setVelocity(motor_M2.getMaxVelocity());
+
                     servo_D0.setPulseWidth(weight_up_left);
                     servo_D1.setPulseWidth(weight_up_right);
+                    //Auf der Startplattform
+                    if(platform == 1){
+                        motor_M1.setVelocity(lineFollower.getLeftWheelVelocity());
+                        motor_M2.setVelocity(lineFollower.getRightWheelVelocity());
+                    }
+                    if(platform == 2){
+                        motor_M1.setVelocity(motor_M1.getMaxVelocity());
+                        motor_M2.setVelocity(motor_M2.getMaxVelocity());
+                    }
+
                     if(us_distance_cm < 25 && us_distance_cm > 20){
+                        platform = 2;
                         robot_state = RobotState::ROPEPREPARE;
                     }
                     if(us_distance_cm < 2){

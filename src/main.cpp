@@ -66,8 +66,8 @@ int main()
     //ANPASSEN
     float servo_D0_ang_min = 0.0310f;
     float servo_D0_ang_max = 0.118f;
-    float servo_D1_ang_min = 0.0315f;
-    float servo_D1_ang_max = 0.122f;
+    float servo_D1_ang_min = 0.0325f;
+    float servo_D1_ang_max = 0.119f;
 
     // servo.setPulseWidth: before calibration (0,1) -> (min pwm, max pwm)
     // servo.setPulseWidth: after calibration (0,1) -> (servo_D0_ang_min, servo_D0_ang_max)
@@ -102,7 +102,7 @@ int main()
     const float voltage_max = 12.0f; // maximum voltage of battery packs, adjust this to
     // 6.0f V if you only use one battery pack
 
-    // Motor M1
+    // Motor M1 links
     const float gear_ratio_M1 = 100.0f; // gear ratio
     const float kn_M1 = 140.0f / 12.0f;  // motor constant [rpm/V]
     DCMotor motor_M1(PB_PWM_M1, PB_ENC_A_M1, PB_ENC_B_M1, gear_ratio_M1, kn_M1, voltage_max);
@@ -113,7 +113,7 @@ int main()
     // limit max. acceleration to half of the default acceleration
     motor_M1.setMaxAcceleration(motor_M1.getMaxAcceleration() * 0.5f);
 
-    // Motor M2
+    // Motor M2 rechts
     const float gear_ratio_M2 = 100.0f; // gear ratio
     const float kn_M2 = 140.0f / 12.0f;  // motor constant [rpm/V]
     DCMotor motor_M2(PB_PWM_M2, PB_ENC_A_M2, PB_ENC_B_M2, gear_ratio_M2, kn_M2, voltage_max);
@@ -144,7 +144,7 @@ int main()
     const float d_wheel = 0.046f; // wheel diameter in meters
     const float b_wheel = 0.153f;  // wheelbase, distance from wheel to wheel in meters
     const float bar_dist = 0.09f; // distance from wheel axis to leds on sensor bar / array in meters
-    LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M2.getMaxPhysicalVelocity());
+    LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M1.getMaxPhysicalVelocity());
     
     // nonlinear controller gains, tune to your needs (linefollower)
     const float Kp = 1.2f * 2.0f;
@@ -194,14 +194,13 @@ int main()
                     servo_D1.setPulseWidth(weight_up_right);
                     //Auf der Startplattform
                     if(platform == 1){
-                        motor_M1.setVelocity(lineFollower.getRightWheelVelocity());
-                        motor_M2.setVelocity(lineFollower.getLeftWheelVelocity());
+                        motor_M1.setVelocity(lineFollower.getLeftWheelVelocity());
+                        motor_M2.setVelocity(lineFollower.getRightWheelVelocity());
                     }
                     if(platform == 2){
                         motor_M1.setVelocity(motor_M1.getMaxVelocity());
                         motor_M2.setVelocity(motor_M2.getMaxVelocity());
                     }
-
 
                     if(us_distance_cm < 25 && us_distance_cm > 20){
                         platform = 2;
