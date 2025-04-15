@@ -157,6 +157,7 @@ int main()
     float ir_distance_cm = 0.0f;
     float ir_distance_avg = 0.0f;
     IRSensor ir_sensor(PC_2);                      // before the calibration the read function will return the averaged mV value
+    //ANPASSEN
     ir_sensor.setCalibration(2.574e+04f, -29.37f); // after the calibration the read function will return the calibrated value
 
 
@@ -176,6 +177,14 @@ int main()
                 challenge_1 = true;
             }
 
+            float ir_sensor_compensation(float ir_distance_mV);
+                // insert values that you got from the MATLAB file
+                //ANPASSEN
+            static const float a = 2.574e+04f; 
+            static const float b = -29.37f;
+
+            
+            ir_distance_cm = ir_sensor.readcm();
 
             //read distance with us_sensor
             const float us_distance_cm_candidate = us_sensor.read();
@@ -343,9 +352,9 @@ int main()
             // the following code block gets executed only once
             if (do_reset_all_once) {
                 do_reset_all_once = false;
-
                 // reset variables and objects
                 led1 = 0;
+                // reset variables and objects
                 servo_D0.disable();
                 servo_D1.disable();
                 enable_motors = 0;
@@ -361,6 +370,8 @@ int main()
         user_led = !user_led;
 
         printf("US distance cm: %f \n", us_distance_cm);
+        // print to the serial terminal
+        printf("IR distance mV: %f IR distance cm: %f \n", ir_distance_mV, ir_distance_cm);
 
         // read timer and make the main thread sleep for the remaining time span (non blocking)
         int main_task_elapsed_time_ms = duration_cast<milliseconds>(main_task_timer.elapsed_time()).count();
