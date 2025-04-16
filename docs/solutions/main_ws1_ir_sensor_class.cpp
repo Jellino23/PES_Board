@@ -43,7 +43,7 @@ int main()
     float ir_distance_cm = 0.0f;
     float ir_distance_avg = 0.0f;
     IRSensor ir_sensor(PC_2);                      // before the calibration the read function will return the averaged mV value
-    ir_sensor.setCalibration(2.574e+04f, -29.37f); // after the calibration the read function will return the calibrated value
+    //ir_sensor.setCalibration(2.574e+04f, -29.37f); // after the calibration the read function will return the calibrated value
 
     // start timer
     main_task_timer.start();

@@ -108,22 +108,22 @@ int main()
     const float kn_M1 = 140.0f / 12.0f;  // motor constant [rpm/V]
     DCMotor motor_M1(PB_PWM_M1, PB_ENC_A_M1, PB_ENC_B_M1, gear_ratio_M1, kn_M1, voltage_max);
     // limit max. velocity to half physical possible velocity
-    motor_M1.setMaxVelocity(motor_M1.getMaxPhysicalVelocity() * 0.5f);
+    motor_M1.setMaxVelocity(motor_M1.getMaxPhysicalVelocity() * 0.3f);
     // enable the motion planner for smooth movements
     // //motor_M1.enableMotionPlanner();
     // limit max. acceleration to half of the default acceleration
-    motor_M1.setMaxAcceleration(motor_M1.getMaxAcceleration() * 0.5f);
+    motor_M1.setMaxAcceleration(motor_M1.getMaxAcceleration() * 0.3f);
 
     // Motor M2
     const float gear_ratio_M2 = 100.0f; // gear ratio
     const float kn_M2 = 140.0f / 12.0f;  // motor constant [rpm/V]
     DCMotor motor_M2(PB_PWM_M2, PB_ENC_A_M2, PB_ENC_B_M2, gear_ratio_M2, kn_M2, voltage_max);
     // limit max. velocity to half physical possible velocity
-    motor_M2.setMaxVelocity(motor_M2.getMaxPhysicalVelocity() * 0.5f);
+    motor_M2.setMaxVelocity(motor_M2.getMaxPhysicalVelocity() * 0.3f);
     // enable the motion planner for smooth movements
     //motor_M2.enableMotionPlanner();
     // limit max. acceleration to half of the default acceleration
-    motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.5f);
+    motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.3f);
 
 
     // mechanical button
@@ -153,13 +153,16 @@ int main()
     lineFollower.setRotationalVelocityGain(Kp, Kp_nl);
 
     // ir distance sensor with average filter and implicit calibration
-    float ir_distance_mV = 0.0f; // define a variable to store measurement (in mV)
+
+    int distance_to_ground = 7;
     float ir_distance_cm = 0.0f;
-    float ir_distance_avg = 0.0f;
+    float ir_distance_cm_read = 0.0f;
     IRSensor ir_sensor(PC_2);                      // before the calibration the read function will return the averaged mV value
     //ANPASSEN
-    ir_sensor.setCalibration(2.574e+04f, -29.37f); // after the calibration the read function will return the calibrated value
+    ir_sensor.setCalibration(11821.2086f, -122.1091f); // after the calibration the read function will return the calibrated value
 
+    Timer initial_state_timer;
+    bool initial_timer_started = false;
 
     // start timer
     main_task_timer.start();
@@ -177,14 +180,11 @@ int main()
                 challenge_1 = true;
             }
 
-            float ir_sensor_compensation(float ir_distance_mV);
-                // insert values that you got from the MATLAB file
-                //ANPASSEN
-            static const float a = 2.574e+04f; 
-            static const float b = -29.37f;
-
             
-            ir_distance_cm = ir_sensor.readcm();
+            ir_distance_cm_read = ir_sensor.readcm();
+            ir_distance_cm = ir_distance_cm_read - 3.0;
+            
+
 
             //read distance with us_sensor
             const float us_distance_cm_candidate = us_sensor.read();
@@ -202,7 +202,18 @@ int main()
                         servo_D1.enable(weight_up_right);
                     //Linefollower sieht Line? -->
 
-                    robot_state = RobotState::PLATFORM;
+                    if(!initial_timer_started){
+                        initial_state_timer.start();
+                        initial_timer_started = true;
+                    }
+
+                    if (duration_cast<seconds>(initial_state_timer.elapsed_time()).count() >= 5) {
+                        // Setze den Timer zurück für den nächsten Durchlauf
+                        initial_state_timer.reset();
+                        initial_timer_started = false;
+                        robot_state = RobotState::PLATFORM;
+                    }
+
                     break;
                 }
                 case RobotState::PLATFORM: {
@@ -212,8 +223,8 @@ int main()
                     servo_D1.setPulseWidth(weight_up_right);
                     //Auf der Startplattform
                     if(platform == 1){
-                        motor_M1.setVelocity(lineFollower.getRightWheelVelocity());
-                        motor_M2.setVelocity(lineFollower.getLeftWheelVelocity());
+                        motor_M1.setVelocity(lineFollower.getLeftWheelVelocity());
+                        motor_M2.setVelocity(lineFollower.getRightWheelVelocity());
                     }
                     if(platform == 2){
                         motor_M1.setVelocity(motor_M1.getMaxVelocity());
@@ -222,7 +233,7 @@ int main()
 
 
                     //if(us_distance_cm < 25 && us_distance_cm > 20){
-                    if(ir_distance_cm > 5){
+                    if(ir_distance_cm > distance_to_ground){
                         platform = 2;
                         robot_state = RobotState::ROPEPREPARE;
                     }
@@ -264,7 +275,7 @@ int main()
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
                     //if(us_distance_cm < 15 && us_distance_cm > 12 && challenge_1 == false){
-                    if(ir_distance_cm < 5){
+                    if(ir_distance_cm < distance_to_ground){
                         robot_state = RobotState::OBSTACLEPREPARE;
                     }
                     /*if(us_distance_cm < 6 && us_distance_cm > 4){
@@ -359,9 +370,9 @@ int main()
                 servo_D1.disable();
                 enable_motors = 0;
                 us_distance_cm = 200.0f;
-                ir_distance_mV = 0.0f;
+
                 ir_distance_cm = 0.0f;
-                ir_distance_avg = 0.0f;
+
                 robot_state = RobotState::INITIAL;
             }
         }
@@ -371,7 +382,7 @@ int main()
 
         printf("US distance cm: %f \n", us_distance_cm);
         // print to the serial terminal
-        printf("IR distance mV: %f IR distance cm: %f \n", ir_distance_mV, ir_distance_cm);
+        printf("IR distance cm: %f \n", ir_distance_cm);
 
         // read timer and make the main thread sleep for the remaining time span (non blocking)
         int main_task_elapsed_time_ms = duration_cast<milliseconds>(main_task_timer.elapsed_time()).count();

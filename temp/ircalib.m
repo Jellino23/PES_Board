@@ -1,7 +1,7 @@
 % Distance Data
-dist_cm = [].';
+dist_cm = [4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10].';
 
-dist_mV = [].';
+dist_mV = [2800, 2600, 2450, 2300, 2110, 1950, 1820, 1700, 1600, 1500, 1440, 1350, 1320].';
 
 % Define a fit region: in the example we only want [7, 70]
 ind_fit = dist_cm >= 7.0 & dist_cm <= 70;
