@@ -224,9 +224,15 @@ int main()
 
 
                     //if(us_distance_cm < 25 && us_distance_cm > 20){
-                    if(ir_distance_cm > distance_to_ground){
+                    if(ir_distance_cm > distance_to_ground){ 
                         platform = 2;
-                        robot_state = RobotState::ROPEPREPARE;
+                        if (((us_distance_cm < 50 && us_distance_cm > 45)== false) || ((us_distance_cm < 10 && us_distance_cm > 5 ) == false)) {   //hier sagen das  noch vorgefahren werden soll
+                            motor_M1.setVelocity(motor_M1.getMaxVelocity());                                          //vieleicht besser wenn eine weitere plattform einfügen für den schluss  
+                            motor_M2.setVelocity(motor_M2.getMaxVelocity()); 
+                        }
+                        else{
+                            robot_state = RobotState::ROPEPREPARE;
+                        }
                     }
                     if(us_distance_cm < 2){
                         robot_state = RobotState::SLEEP;
@@ -267,7 +273,13 @@ int main()
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
                     //if(us_distance_cm < 15 && us_distance_cm > 12 && challenge_1 == false){
                     if(ir_distance_cm < distance_to_ground){
-                        robot_state = RobotState::OBSTACLEPREPARE;
+                        if((us_distance_cm < 30 && us_distance_cm > 25) == false){                             //hier auch noch genauere Messangaben machen
+                            motor_M1.setVelocity(motor_M1.getMaxVelocity());
+                            motor_M2.setVelocity(motor_M2.getMaxVelocity());
+                        }
+                        else{
+                            robot_state = RobotState::OBSTACLEPREPARE;
+                        }
                     }
                     /*if(us_distance_cm < 6 && us_distance_cm > 4){
                         robot_state = RobotState::OBSTACLEPREPARE;
@@ -297,10 +309,10 @@ int main()
                     if(servo_input_right > weight_up_right && servo_input_left < weight_up_left){
                         servo_input_left = weight_up_left;
                         servo_input_right = weight_up_right;
-                        if(us_distance_cm > 10){
-                            robot_state = RobotState::OBSTACLE;
-                        }
-                        if(us_distance_cm < 6){
+                        if(us_distance_cm < 30 && us_distance_cm > 25){           //gleiche masse wie in zeile 276
+                             robot_state = RobotState::OBSTACLE;                                                 
+                            }
+                        if(us_distance_cm < 15 && us_distance_cm > 10){           //masse anpassen
                             robot_state = RobotState::PLATFORM;
                         }
                     }
@@ -312,7 +324,7 @@ int main()
                     printf("OBSTACLE\n");
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
-                    if(us_distance_cm < 10){
+                    if(us_distance_cm < 25 && us_distance_cm > 20){              //genauere Massangaben
                         robot_state = RobotState::ROPEPREPARE;
                     }
                     break;

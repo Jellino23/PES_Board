@@ -108,22 +108,22 @@ int main()
     const float kn_M1 = 140.0f / 12.0f;  // motor constant [rpm/V]
     DCMotor motor_M1(PB_PWM_M1, PB_ENC_A_M1, PB_ENC_B_M1, gear_ratio_M1, kn_M1, voltage_max);
     // limit max. velocity to half physical possible velocity
-    motor_M1.setMaxVelocity(motor_M1.getMaxPhysicalVelocity() * 0.5f);
+    motor_M1.setMaxVelocity(motor_M1.getMaxPhysicalVelocity() * 0.3f);
     // enable the motion planner for smooth movements
     // //motor_M1.enableMotionPlanner();
     // limit max. acceleration to half of the default acceleration
-    motor_M1.setMaxAcceleration(motor_M1.getMaxAcceleration() * 0.5f);
+    motor_M1.setMaxAcceleration(motor_M1.getMaxAcceleration() * 0.3f);
 
     // Motor M2
     const float gear_ratio_M2 = 100.0f; // gear ratio
     const float kn_M2 = 140.0f / 12.0f;  // motor constant [rpm/V]
     DCMotor motor_M2(PB_PWM_M2, PB_ENC_A_M2, PB_ENC_B_M2, gear_ratio_M2, kn_M2, voltage_max);
     // limit max. velocity to half physical possible velocity
-    motor_M2.setMaxVelocity(motor_M2.getMaxPhysicalVelocity() * 0.5f);
+    motor_M2.setMaxVelocity(motor_M2.getMaxPhysicalVelocity() * 0.3f);
     // enable the motion planner for smooth movements
     //motor_M2.enableMotionPlanner();
     // limit max. acceleration to half of the default acceleration
-    motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.5f);
+    motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.3f);
 
 
     // mechanical button
@@ -135,8 +135,6 @@ int main()
     // ultra sonic sensor
     UltrasonicSensor us_sensor(PB_D3);
     float us_distance_cm = 200.0f;
-
-    bool challenge_1 = false;
 
     int platform = 1;
     //linefollower
@@ -153,12 +151,16 @@ int main()
     lineFollower.setRotationalVelocityGain(Kp, Kp_nl);
 
     // ir distance sensor with average filter and implicit calibration
-    float ir_distance_mV = 0.0f; // define a variable to store measurement (in mV)
-    float ir_distance_cm = 0.0f;
-    float ir_distance_avg = 0.0f;
-    IRSensor ir_sensor(PC_2);                      // before the calibration the read function will return the averaged mV value
-    ir_sensor.setCalibration(2.574e+04f, -29.37f); // after the calibration the read function will return the calibrated value
 
+    int distance_to_ground = 7;
+    float ir_distance_cm = 0.0f;
+    float ir_distance_cm_read = 0.0f;
+    IRSensor ir_sensor(PC_2);                      // before the calibration the read function will return the averaged mV value
+    //ANPASSEN
+    ir_sensor.setCalibration(11821.2086f, -122.1091f); // after the calibration the read function will return the calibrated value
+
+    Timer initial_state_timer;
+    bool initial_timer_started = false;
 
     // start timer
     main_task_timer.start();
@@ -171,17 +173,15 @@ int main()
 
             // visual feedback that the main task is executed, setting this once would actually be enough
             led1 = 1;
-
-            if (mechanical_button.read()){
-                challenge_1 = true;
-            }
-
+            
+            ir_distance_cm_read = ir_sensor.readcm();
+            ir_distance_cm = ir_distance_cm_read - 3.0;
 
             //read distance with us_sensor
             const float us_distance_cm_candidate = us_sensor.read();
-            if (us_distance_cm_candidate > 0.0f && us_distance_cm_candidate < us_distance_cm)        //only valid measurments are accepted
+            if (us_distance_cm_candidate > 0.0f){        //only valid measurments are accepted
                 us_distance_cm = us_distance_cm_candidate;
-            
+            }
             switch (robot_state) {
                 case RobotState::INITIAL: {
                     printf("INITIAL\n");
@@ -193,7 +193,18 @@ int main()
                         servo_D1.enable(weight_up_right);
                     //Linefollower sieht Line? -->
 
-                    robot_state = RobotState::PLATFORM;
+                    if(!initial_timer_started){
+                        initial_state_timer.start();
+                        initial_timer_started = true;
+                    }
+
+                    if (duration_cast<seconds>(initial_state_timer.elapsed_time()).count() >= 5) {
+                        // Setze den Timer zurück für den nächsten Durchlauf
+                        initial_state_timer.reset();
+                        initial_timer_started = false;
+                        robot_state = RobotState::PLATFORM;
+                    }
+
                     break;
                 }
                 case RobotState::PLATFORM: {
@@ -203,8 +214,8 @@ int main()
                     servo_D1.setPulseWidth(weight_up_right);
                     //Auf der Startplattform
                     if(platform == 1){
-                        motor_M1.setVelocity(lineFollower.getRightWheelVelocity());
-                        motor_M2.setVelocity(lineFollower.getLeftWheelVelocity());
+                        motor_M1.setVelocity(lineFollower.getLeftWheelVelocity());
+                        motor_M2.setVelocity(lineFollower.getRightWheelVelocity());
                     }
                     if(platform == 2){
                         motor_M1.setVelocity(motor_M1.getMaxVelocity());
@@ -213,9 +224,15 @@ int main()
 
 
                     //if(us_distance_cm < 25 && us_distance_cm > 20){
-                    if(ir_distance_cm > 5){
+                    if(ir_distance_cm > distance_to_ground){ 
                         platform = 2;
-                        robot_state = RobotState::ROPEPREPARE;
+                        if (((us_distance_cm < 50 && us_distance_cm > 45)== false) || ((us_distance_cm < 10 && us_distance_cm > 5 ) == false)) {   //hier sagen das  noch vorgefahren werden soll
+                            motor_M1.setVelocity(motor_M1.getMaxVelocity());                                          //vieleicht besser wenn eine weitere plattform einfügen für den schluss  
+                            motor_M2.setVelocity(motor_M2.getMaxVelocity()); 
+                        }
+                        else{
+                            robot_state = RobotState::ROPEPREPARE;
+                        }
                     }
                     if(us_distance_cm < 2){
                         robot_state = RobotState::SLEEP;
@@ -255,8 +272,14 @@ int main()
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
                     //if(us_distance_cm < 15 && us_distance_cm > 12 && challenge_1 == false){
-                    if(ir_distance_cm < 5){
-                        robot_state = RobotState::OBSTACLEPREPARE;
+                    if(ir_distance_cm < distance_to_ground){
+                        if((us_distance_cm < 30 && us_distance_cm > 25) == false){                             //hier auch noch genauere Messangaben machen
+                            motor_M1.setVelocity(motor_M1.getMaxVelocity());
+                            motor_M2.setVelocity(motor_M2.getMaxVelocity());
+                        }
+                        else{
+                            robot_state = RobotState::OBSTACLEPREPARE;
+                        }
                     }
                     /*if(us_distance_cm < 6 && us_distance_cm > 4){
                         robot_state = RobotState::OBSTACLEPREPARE;
@@ -286,10 +309,10 @@ int main()
                     if(servo_input_right > weight_up_right && servo_input_left < weight_up_left){
                         servo_input_left = weight_up_left;
                         servo_input_right = weight_up_right;
-                        if(us_distance_cm > 10){
-                            robot_state = RobotState::OBSTACLE;
-                        }
-                        if(us_distance_cm < 6){
+                        if(us_distance_cm < 30 && us_distance_cm > 25){           //gleiche masse wie in zeile 276
+                             robot_state = RobotState::OBSTACLE;                                                 
+                            }
+                        if(us_distance_cm < 15 && us_distance_cm > 10){           //masse anpassen
                             robot_state = RobotState::PLATFORM;
                         }
                     }
@@ -301,7 +324,7 @@ int main()
                     printf("OBSTACLE\n");
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
-                    if(us_distance_cm < 10 && challenge_1 == false){
+                    if(us_distance_cm < 25 && us_distance_cm > 20){              //genauere Massangaben
                         robot_state = RobotState::ROPEPREPARE;
                     }
                     break;
@@ -343,13 +366,16 @@ int main()
             // the following code block gets executed only once
             if (do_reset_all_once) {
                 do_reset_all_once = false;
-
                 // reset variables and objects
                 led1 = 0;
+                // reset variables and objects
                 servo_D0.disable();
                 servo_D1.disable();
                 enable_motors = 0;
                 us_distance_cm = 200.0f;
+
+                ir_distance_cm = 0.0f;
+
                 robot_state = RobotState::INITIAL;
             }
         }
@@ -358,6 +384,8 @@ int main()
         user_led = !user_led;
 
         printf("US distance cm: %f \n", us_distance_cm);
+        // print to the serial terminal
+        //printf("IR distance cm: %f \n", ir_distance_cm);
 
         // read timer and make the main thread sleep for the remaining time span (non blocking)
         int main_task_elapsed_time_ms = duration_cast<milliseconds>(main_task_timer.elapsed_time()).count();
