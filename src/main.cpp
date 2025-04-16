@@ -136,8 +136,6 @@ int main()
     UltrasonicSensor us_sensor(PB_D3);
     float us_distance_cm = 200.0f;
 
-    bool challenge_1 = false;
-
     int platform = 1;
     //linefollower
 
@@ -175,22 +173,15 @@ int main()
 
             // visual feedback that the main task is executed, setting this once would actually be enough
             led1 = 1;
-
-            if (mechanical_button.read()){
-                challenge_1 = true;
-            }
-
             
             ir_distance_cm_read = ir_sensor.readcm();
             ir_distance_cm = ir_distance_cm_read - 3.0;
-            
-
 
             //read distance with us_sensor
             const float us_distance_cm_candidate = us_sensor.read();
-            if (us_distance_cm_candidate > 0.0f && us_distance_cm_candidate < us_distance_cm)        //only valid measurments are accepted
+            if (us_distance_cm_candidate > 0.0f){        //only valid measurments are accepted
                 us_distance_cm = us_distance_cm_candidate;
-            
+            }
             switch (robot_state) {
                 case RobotState::INITIAL: {
                     printf("INITIAL\n");
@@ -321,7 +312,7 @@ int main()
                     printf("OBSTACLE\n");
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
-                    if(us_distance_cm < 10 && challenge_1 == false){
+                    if(us_distance_cm < 10){
                         robot_state = RobotState::ROPEPREPARE;
                     }
                     break;
@@ -382,7 +373,7 @@ int main()
 
         printf("US distance cm: %f \n", us_distance_cm);
         // print to the serial terminal
-        printf("IR distance cm: %f \n", ir_distance_cm);
+        //printf("IR distance cm: %f \n", ir_distance_cm);
 
         // read timer and make the main thread sleep for the remaining time span (non blocking)
         int main_task_elapsed_time_ms = duration_cast<milliseconds>(main_task_timer.elapsed_time()).count();
