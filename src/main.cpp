@@ -89,10 +89,10 @@ int main()
     const int loops_per_seconds = static_cast<int>(ceilf(1.0f / (0.001f * static_cast<float>(main_task_period_ms))));
 
     //Variablen wo dass das Gewicht ist
-    float weight_down_left = 0.6f;
-    float weight_up_left = 0.08f;
+    float weight_down_left = 0.63f;
+    float weight_up_left = 0.05f;
     float weight_down_right = 0.2f;
-    float weight_up_right = 0.73f;
+    float weight_up_right = 0.75f;
 
     servo_input_left = weight_up_left;
     servo_input_right = weight_up_right;
@@ -108,22 +108,22 @@ int main()
     const float kn_M1 = 140.0f / 12.0f;  // motor constant [rpm/V]
     DCMotor motor_M1(PB_PWM_M1, PB_ENC_A_M1, PB_ENC_B_M1, gear_ratio_M1, kn_M1, voltage_max);
     // limit max. velocity to half physical possible velocity
-    motor_M1.setMaxVelocity(motor_M1.getMaxPhysicalVelocity() * 0.3f);
+    motor_M1.setMaxVelocity(motor_M1.getMaxPhysicalVelocity() * 0.28f);
     // enable the motion planner for smooth movements
     // //motor_M1.enableMotionPlanner();
     // limit max. acceleration to half of the default acceleration
-    motor_M1.setMaxAcceleration(motor_M1.getMaxAcceleration() * 0.3f);
+    motor_M1.setMaxAcceleration(motor_M1.getMaxAcceleration() * 0.28f);
 
     // Motor M2
     const float gear_ratio_M2 = 100.0f; // gear ratio
     const float kn_M2 = 140.0f / 12.0f;  // motor constant [rpm/V]
     DCMotor motor_M2(PB_PWM_M2, PB_ENC_A_M2, PB_ENC_B_M2, gear_ratio_M2, kn_M2, voltage_max);
     // limit max. velocity to half physical possible velocity
-    motor_M2.setMaxVelocity(motor_M2.getMaxPhysicalVelocity() * 0.3f);
+    motor_M2.setMaxVelocity(motor_M2.getMaxPhysicalVelocity() * 0.28f);
     // enable the motion planner for smooth movements
     //motor_M2.enableMotionPlanner();
     // limit max. acceleration to half of the default acceleration
-    motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.3f);
+    motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.28f);
 
 
     // mechanical button
@@ -142,7 +142,7 @@ int main()
     // line follower, tune max. vel rps to your needs
     const float d_wheel = 0.046f; // wheel diameter in meters
     const float b_wheel = 0.153f;  // wheelbase, distance from wheel to wheel in meters
-    const float bar_dist = 0.09f; // distance from wheel axis to leds on sensor bar / array in meters
+    const float bar_dist = 0.07f; // distance from wheel axis to leds on sensor bar / array in meters
     LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M2.getMaxPhysicalVelocity());
     
     // nonlinear controller gains, tune to your needs (linefollower)
@@ -226,15 +226,21 @@ int main()
                     //if(us_distance_cm < 25 && us_distance_cm > 20){
                     if(ir_distance_cm > distance_to_ground){ 
                         platform = 2;
-                        if (((us_distance_cm < 108 && us_distance_cm > 106)== false)) {   //hier sagen das  noch vorgefahren werden soll
+                        motor_M1.setRotation(2.5f);
+                        motor_M2.setRotation(2.5f);
+                        
+                        if(motor_M1.getRotation() == 2.5f && motor_M2.getRotation() == 2.5f){
+                            robot_state = RobotState::ROPEPREPARE;
+                        }
+                        /*if (((us_distance_cm < 115 && us_distance_cm > 95)== false)) {   //hier sagen das  noch vorgefahren werden soll
                             motor_M1.setVelocity(motor_M1.getMaxVelocity());                                          //vieleicht besser wenn eine weitere plattform einfügen für den schluss  
                             motor_M2.setVelocity(motor_M2.getMaxVelocity()); 
                         }
                         else{
                             robot_state = RobotState::ROPEPREPARE;
-                        }
+                        }*/
                     }
-                    if(us_distance_cm < 20){
+                    if(us_distance_cm < 15){
                         motor_M1.setVelocity(0.0f);                                          //vieleicht besser wenn eine weitere plattform einfügen für den schluss  
                         motor_M2.setVelocity(0.0f);
                     }
@@ -301,17 +307,17 @@ int main()
                     if(servo_input_right > weight_up_right && servo_input_left < weight_up_left){
                         servo_input_left = weight_up_left;
                         servo_input_right = weight_up_right;
-                        if(us_distance_cm < 95 && us_distance_cm > 85){           //gleiche masse wie in zeile 276
+                        robot_state = RobotState::PLATFORM;
+                        /*if(us_distance_cm < 95 && us_distance_cm > 85){           //gleiche masse wie in zeile 276
                              robot_state = RobotState::OBSTACLE;                                                 
                             }
                         if(us_distance_cm < 55 && us_distance_cm > 45){           //masse anpassen
-                            robot_state = RobotState::PLATFORM;
+                            robot_state = RobotState::PLATFORM;*/
                         }
-                    }
                     servo_D0.setPulseWidth(servo_input_left);
                     servo_D1.setPulseWidth(servo_input_right);
                     break;
-                }
+                    }
                 case RobotState::OBSTACLE: {
                     printf("OBSTACLE\n");
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
