@@ -138,11 +138,14 @@ int main()
 
     int platform = 1;
     //linefollower
+    int ir_sees_ground = 0;
+    float rotationBeforeRopeM1 = 0.0f;
+    float rotationBeforeRopeM2 = 0.0f;
 
     // line follower, tune max. vel rps to your needs
     const float d_wheel = 0.046f; // wheel diameter in meters
     const float b_wheel = 0.153f;  // wheelbase, distance from wheel to wheel in meters
-    const float bar_dist = 0.07f; // distance from wheel axis to leds on sensor bar / array in meters
+    const float bar_dist = 0.02f; // distance from wheel axis to leds on sensor bar / array in meters
     LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M2.getMaxPhysicalVelocity());
     
     // nonlinear controller gains, tune to your needs (linefollower)
@@ -152,7 +155,7 @@ int main()
 
     // ir distance sensor with average filter and implicit calibration
 
-    int distance_to_ground = 7;
+    float distance_to_ground = 7.0f;
     float ir_distance_cm = 0.0f;
     float ir_distance_cm_read = 0.0f;
     IRSensor ir_sensor(PC_2);                      // before the calibration the read function will return the averaged mV value
@@ -198,7 +201,7 @@ int main()
                         initial_timer_started = true;
                     }
 
-                    if (duration_cast<seconds>(initial_state_timer.elapsed_time()).count() >= 5) {
+                    if (duration_cast<seconds>(initial_state_timer.elapsed_time()).count() >= 3) {
                         // Setze den Timer zurück für den nächsten Durchlauf
                         initial_state_timer.reset();
                         initial_timer_started = false;
@@ -221,15 +224,22 @@ int main()
                         motor_M1.setVelocity(motor_M1.getMaxVelocity());
                         motor_M2.setVelocity(motor_M2.getMaxVelocity());
                     }
-
+                    if(ir_sees_ground == 0){
+                        rotationBeforeRopeM1 = motor_M1.getRotation();
+                        rotationBeforeRopeM2 = motor_M2.getRotation();
+                    }
 
                     //if(us_distance_cm < 25 && us_distance_cm > 20){
-                    if(ir_distance_cm > distance_to_ground){ 
+                    if(ir_distance_cm > distance_to_ground || ir_sees_ground == 1){ 
                         platform = 2;
-                        motor_M1.setRotation(2.5f);
-                        motor_M2.setRotation(2.5f);
+                        ir_sees_ground = 1;
+
+                        //motor_M1.setVelocity(motor_M1.getMaxVelocity());
+                        //motor_M2.setVelocity(motor_M2.getMaxVelocity());
                         
-                        if(motor_M1.getRotation() == 2.5f && motor_M2.getRotation() == 2.5f){
+                        if((motor_M1.getRotation() - rotationBeforeRopeM1) >= (1.0f + rotationBeforeRopeM1) && (motor_M2.getRotation() - rotationBeforeRopeM2) >= (1.0f + rotationBeforeRopeM2)){
+                            ir_sees_ground = 0;
+                            
                             robot_state = RobotState::ROPEPREPARE;
                         }
                         /*if (((us_distance_cm < 115 && us_distance_cm > 95)== false)) {   //hier sagen das  noch vorgefahren werden soll
@@ -240,10 +250,10 @@ int main()
                             robot_state = RobotState::ROPEPREPARE;
                         }*/
                     }
-                    if(us_distance_cm < 15){
+                    /*if(us_distance_cm < 15){
                         motor_M1.setVelocity(0.0f);                                          //vieleicht besser wenn eine weitere plattform einfügen für den schluss  
                         motor_M2.setVelocity(0.0f);
-                    }
+                    }*/
                     break;
                 }
                 case RobotState::ROPEPREPARE: {
@@ -381,9 +391,12 @@ int main()
         // toggling the user led
         user_led = !user_led;
 
-        printf("US distance cm: %f \n", us_distance_cm);
+        //printf("US distance cm: %f \n", us_distance_cm);
         // print to the serial terminal
-        //printf("IR distance cm: %f \n", ir_distance_cm);
+        printf("IR distance cm: %f ", ir_distance_cm);
+        printf("IR Sees Ground: %d ", ir_sees_ground);
+        printf("motor_M1 getRotation: %f ", motor_M1.getRotation());
+        printf("beforeRopeM1: %f \n", rotationBeforeRopeM1);
 
         // read timer and make the main thread sleep for the remaining time span (non blocking)
         int main_task_elapsed_time_ms = duration_cast<milliseconds>(main_task_timer.elapsed_time()).count();
