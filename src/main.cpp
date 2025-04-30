@@ -89,10 +89,10 @@ int main()
     const int loops_per_seconds = static_cast<int>(ceilf(1.0f / (0.001f * static_cast<float>(main_task_period_ms))));
 
     //Variablen wo dass das Gewicht ist
-    float weight_down_left = 0.63f;
-    float weight_up_left = 0.05f;
-    float weight_down_right = 0.2f;
-    float weight_up_right = 0.75f;
+    float weight_down_left = 0.52f;              //war 0.63
+    float weight_up_left = 0.025f;              //war 0.05
+    float weight_down_right = 0.3f;             //war 0.2
+    float weight_up_right = 0.8f;               //war 0.75
 
     servo_input_left = weight_up_left;
     servo_input_right = weight_up_right;
@@ -147,7 +147,7 @@ int main()
     // line follower, tune max. vel rps to your needs
     const float d_wheel = 0.046f; // wheel diameter in meters
     const float b_wheel = 0.153f;  // wheelbase, distance from wheel to wheel in meters
-    const float bar_dist = 0.02f; // distance from wheel axis to leds on sensor bar / array in meters
+    const float bar_dist = 0.02f; // distance from wheel axis to leds on sensor bar / array in meters //angepasst vorher war 0.02
     LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M2.getMaxPhysicalVelocity());
     
     // nonlinear controller gains, tune to your needs (linefollower)
@@ -166,6 +166,8 @@ int main()
 
     Timer initial_state_timer;
     bool initial_timer_started = false;
+    Timer initial_Servo_Zeitgeber;
+    bool initial_Servo_Zeitgeber_started = false;
 
     // start timer
     main_task_timer.start();
@@ -225,6 +227,8 @@ int main()
                     if(platform == 2){
                         motor_M1.setVelocity(motor_M1.getMaxVelocity());
                         motor_M2.setVelocity(motor_M2.getMaxVelocity());
+                            
+                            
                     }
                     if(ir_sees_ground == 0){
                         rotationBeforeRopeM1 = motor_M1.getRotation();
@@ -289,8 +293,9 @@ int main()
                 }
                 case RobotState::ROPE: {
                     printf("ROPE\n");
-                    motor_M1.setVelocity(motor_M1.getMaxVelocity());
-                    motor_M2.setVelocity(motor_M2.getMaxVelocity());
+                    motor_M1.setVelocity(motor_M1.getMaxVelocity() * 0.5);
+                    motor_M2.setVelocity(motor_M2.getMaxVelocity() * 0.5);
+                    
 
                     if(ir_distance_cm < distance_to_ground){
                         robot_state = RobotState::OBSTACLEPREPARE;
@@ -303,31 +308,48 @@ int main()
                     /*
                     Problem: Motor hört nicht auf zu drehen, wie bringt man motor zum stoppen?
                     */
+                    static bool initial_Servo_Zeitgeber_started = false;    //damit der Timer immer wieder gestarted
                     motor_M1.setVelocity(0.0f);
                     motor_M2.setVelocity(0.0f);
                     
-                    if ((servo_input_left > 0.0f) &&                     // constrain servo_input to be < 1.0f
+
+                    if ((servo_input_left > 0.0f) &&                     // constrain servo_input to be < 1.0f 
                         (servo_counter_left % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
                         (servo_counter_left != 0))                       // avoid servo_counter = 0
                         servo_input_left -= 0.1f;
                     servo_counter_left++;
                     
-                    if ((servo_input_right < 1.0f) &&                     // constrain servo_input to be < 1.0f
+                    if ((servo_input_right < 1.0f) &&                     // constrain servo_input to be < 1.0f 
                         (servo_counter_right % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
                         (servo_counter_right != 0))                       // avoid servo_counter = 0
                         servo_input_right += 0.1f;
                     servo_counter_right++;
-
+                        // prüfe ob servos genug weit oben sind
                     if(servo_input_right > weight_up_right && servo_input_left < weight_up_left){
-                        servo_input_left = weight_up_left;
+                        servo_input_left = weight_up_left;                  
                         servo_input_right = weight_up_right;
-                        robot_state = RobotState::PLATFORM;
+                        
+                        
+                        if(!initial_Servo_Zeitgeber_started){                       //problem: der Timer wird nur ein einziges mal durchlaufen heisst beim zweiten obsstacle hängt der bastard wieder fest
+                            initial_Servo_Zeitgeber.start();
+                            initial_Servo_Zeitgeber_started = true;
+                            
+                        }
+                        if (duration_cast<seconds>(initial_Servo_Zeitgeber.elapsed_time()).count() >= 2) {
+                            // Setze den Timer zurück für den nächsten Durchlauf
+                            initial_Servo_Zeitgeber.reset();
+                            initial_Servo_Zeitgeber_started = false;
+                            robot_state = RobotState::PLATFORM;
+                        }
+                        
+                        
                         /*if(us_distance_cm < 95 && us_distance_cm > 85){           //gleiche masse wie in zeile 276
                              robot_state = RobotState::OBSTACLE;                                                 
                             }
                         if(us_distance_cm < 55 && us_distance_cm > 45){           //masse anpassen
                             robot_state = RobotState::PLATFORM;*/
-                        }
+                    
+                    }
                     servo_D0.setPulseWidth(servo_input_left);
                     servo_D1.setPulseWidth(servo_input_right);
                     break;
