@@ -141,6 +141,8 @@ int main()
     int ir_sees_ground = 0;
     float rotationBeforeRopeM1 = 0.0f;
     float rotationBeforeRopeM2 = 0.0f;
+    float diff_Rot_M1 = 0.0f;
+    float diff_Rot_M2 = 0.0f;
 
     // line follower, tune max. vel rps to your needs
     const float d_wheel = 0.046f; // wheel diameter in meters
@@ -230,14 +232,16 @@ int main()
                     }
 
                     //if(us_distance_cm < 25 && us_distance_cm > 20){
-                    if(ir_distance_cm > distance_to_ground || ir_sees_ground == 1){ 
+                    if((ir_distance_cm > distance_to_ground) || (ir_sees_ground == 1)){ 
                         platform = 2;
                         ir_sees_ground = 1;
+                        diff_Rot_M1 = (motor_M1.getRotation() - rotationBeforeRopeM1);
+                        diff_Rot_M2 = (motor_M2.getRotation() - rotationBeforeRopeM2);
 
                         //motor_M1.setVelocity(motor_M1.getMaxVelocity());
                         //motor_M2.setVelocity(motor_M2.getMaxVelocity());
                         
-                        if((motor_M1.getRotation() - rotationBeforeRopeM1) >= (1.0f + rotationBeforeRopeM1) && (motor_M2.getRotation() - rotationBeforeRopeM2) >= (1.0f + rotationBeforeRopeM2)){
+                        if( (diff_Rot_M1 >= 1.0f) && (diff_Rot_M2 >= 1.0f)){
                             ir_sees_ground = 0;
                             
                             robot_state = RobotState::ROPEPREPARE;
@@ -395,8 +399,12 @@ int main()
         // print to the serial terminal
         printf("IR distance cm: %f ", ir_distance_cm);
         printf("IR Sees Ground: %d ", ir_sees_ground);
+        printf("beforeroopeM1: %f ", rotationBeforeRopeM1);
         printf("motor_M1 getRotation: %f ", motor_M1.getRotation());
-        printf("beforeRopeM1: %f \n", rotationBeforeRopeM1);
+        //printf("motor_M2 getRotation: %f ", motor_M2.getRotation());
+        printf("diffrotation M1: %f ", diff_Rot_M1);
+        printf("diffrotation M2: %f \n", diff_Rot_M2);
+       
 
         // read timer and make the main thread sleep for the remaining time span (non blocking)
         int main_task_elapsed_time_ms = duration_cast<milliseconds>(main_task_timer.elapsed_time()).count();
