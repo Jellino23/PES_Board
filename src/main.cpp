@@ -235,33 +235,19 @@ int main()
                         rotationBeforeRopeM2 = motor_M2.getRotation();
                     }
 
-                    //if(us_distance_cm < 25 && us_distance_cm > 20){
+
                     if((ir_distance_cm > distance_to_ground) || (ir_sees_ground == 1)){ 
                         platform = 2;
                         ir_sees_ground = 1;
                         diff_Rot_M1 = (motor_M1.getRotation() - rotationBeforeRopeM1);
                         diff_Rot_M2 = (motor_M2.getRotation() - rotationBeforeRopeM2);
 
-                        //motor_M1.setVelocity(motor_M1.getMaxVelocity());
-                        //motor_M2.setVelocity(motor_M2.getMaxVelocity());
-                        
-                        if( (diff_Rot_M1 >= 1.0f) && (diff_Rot_M2 >= 1.0f)){
+                        if( (diff_Rot_M1 >= 2.0f) && (diff_Rot_M2 >= 2.0f)){
                             ir_sees_ground = 0;
                             
                             robot_state = RobotState::ROPEPREPARE;
                         }
-                        /*if (((us_distance_cm < 115 && us_distance_cm > 95)== false)) {   //hier sagen das  noch vorgefahren werden soll
-                            motor_M1.setVelocity(motor_M1.getMaxVelocity());                                          //vieleicht besser wenn eine weitere plattform einfügen für den schluss  
-                            motor_M2.setVelocity(motor_M2.getMaxVelocity()); 
-                        }
-                        else{
-                            robot_state = RobotState::ROPEPREPARE;
-                        }*/
                     }
-                    /*if(us_distance_cm < 15){
-                        motor_M1.setVelocity(0.0f);                                          //vieleicht besser wenn eine weitere plattform einfügen für den schluss  
-                        motor_M2.setVelocity(0.0f);
-                    }*/
                     break;
                 }
                 case RobotState::ROPEPREPARE: {
@@ -305,10 +291,6 @@ int main()
                 }
                 case RobotState::OBSTACLEPREPARE: {
                     printf("OBSTACLEPREPARE\n");
-                    /*
-                    Problem: Motor hört nicht auf zu drehen, wie bringt man motor zum stoppen?
-                    */
-                    static bool initial_Servo_Zeitgeber_started = false;    //damit der Timer immer wieder gestarted
                     motor_M1.setVelocity(0.0f);
                     motor_M2.setVelocity(0.0f);
                     
@@ -330,31 +312,28 @@ int main()
                         servo_input_right = weight_up_right;
                         
                         
-                        if(!initial_Servo_Zeitgeber_started){                       //problem: der Timer wird nur ein einziges mal durchlaufen heisst beim zweiten obsstacle hängt der bastard wieder fest
+                        if (!initial_Servo_Zeitgeber_started) {
+                            initial_Servo_Zeitgeber.reset();
                             initial_Servo_Zeitgeber.start();
                             initial_Servo_Zeitgeber_started = true;
-                            
                         }
+                        
+                            
+                        
                         if (duration_cast<seconds>(initial_Servo_Zeitgeber.elapsed_time()).count() >= 2) {
-                            // Setze den Timer zurück für den nächsten Durchlauf
+                            initial_Servo_Zeitgeber.stop();
                             initial_Servo_Zeitgeber.reset();
                             initial_Servo_Zeitgeber_started = false;
                             robot_state = RobotState::PLATFORM;
                         }
-                        
-                        
-                        /*if(us_distance_cm < 95 && us_distance_cm > 85){           //gleiche masse wie in zeile 276
-                             robot_state = RobotState::OBSTACLE;                                                 
-                            }
-                        if(us_distance_cm < 55 && us_distance_cm > 45){           //masse anpassen
-                            robot_state = RobotState::PLATFORM;*/
                     
                     }
                     servo_D0.setPulseWidth(servo_input_left);
                     servo_D1.setPulseWidth(servo_input_right);
                     break;
                     }
-                case RobotState::OBSTACLE: {
+        
+                /*case RobotState::OBSTACLE: {
                     printf("OBSTACLE\n");
                     motor_M1.setVelocity(motor_M1.getMaxVelocity());
                     motor_M2.setVelocity(motor_M2.getMaxVelocity());
@@ -362,7 +341,7 @@ int main()
                         robot_state = RobotState::ROPEPREPARE;
                     }
                     break;
-                }
+                }*/
                 /*case RobotState::SLEEP: {
                     printf("SLEEP\n");
                     break;
