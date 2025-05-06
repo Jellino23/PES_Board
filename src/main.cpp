@@ -36,9 +36,7 @@ int main()
         ROPEPREPARE,
         ROPE,
         OBSTACLEPREPARE,
-        OBSTACLE,
-        SLEEP,
-        EMERGENCY
+        DANCE
     } robot_state = RobotState::INITIAL;
     // attach button fall function address to user button object
     user_button.fall(&toggle_do_execute_main_fcn);
@@ -91,8 +89,13 @@ int main()
     //Variablen wo dass das Gewicht ist
     float weight_down_left = 0.52f;              //war 0.63
     float weight_up_left = 0.025f;              //war 0.05
+    float weight_dance_left = 0.25f;
     float weight_down_right = 0.3f;             //war 0.2
     float weight_up_right = 0.8f;               //war 0.75
+    float weight_dance_right = 0.55;
+
+    int dance_servo_down = 1;
+    int finish_dance = 0;
 
     servo_input_left = weight_up_left;
     servo_input_right = weight_up_right;
@@ -157,7 +160,7 @@ int main()
 
     // ir distance sensor with average filter and implicit calibration
 
-    float distance_to_ground = 7.0f;
+    float distance_to_ground = 10.0f;
     float ir_distance_cm = 0.0f;
     float ir_distance_cm_read = 0.0f;
     IRSensor ir_sensor(PC_2);                      // before the calibration the read function will return the averaged mV value
@@ -227,14 +230,14 @@ int main()
                     if(platform == 2){
                         motor_M1.setVelocity(motor_M1.getMaxVelocity());
                         motor_M2.setVelocity(motor_M2.getMaxVelocity());
-                            
-                            
+                        if(us_distance_cm <= 15){
+                            robot_state = RobotState::DANCE;
+                        }
                     }
                     if(ir_sees_ground == 0){
                         rotationBeforeRopeM1 = motor_M1.getRotation();
                         rotationBeforeRopeM2 = motor_M2.getRotation();
                     }
-
 
                     if((ir_distance_cm > distance_to_ground) || (ir_sees_ground == 1)){ 
                         platform = 2;
@@ -242,9 +245,8 @@ int main()
                         diff_Rot_M1 = (motor_M1.getRotation() - rotationBeforeRopeM1);
                         diff_Rot_M2 = (motor_M2.getRotation() - rotationBeforeRopeM2);
 
-                        if( (diff_Rot_M1 >= 2.0f) && (diff_Rot_M2 >= 2.0f)){
+                        if( (diff_Rot_M1 >= 1.3f) && (diff_Rot_M2 >= 1.3f)){
                             ir_sees_ground = 0;
-                            
                             robot_state = RobotState::ROPEPREPARE;
                         }
                     }
@@ -273,16 +275,17 @@ int main()
                         servo_input_left = weight_down_left;
                         robot_state = RobotState::ROPE;
                     }
+
                     servo_D0.setPulseWidth(servo_input_left);
                     servo_D1.setPulseWidth(servo_input_right);
                     break;
+
                 }
                 case RobotState::ROPE: {
                     printf("ROPE\n");
-                    motor_M1.setVelocity(motor_M1.getMaxVelocity() * 0.5);
-                    motor_M2.setVelocity(motor_M2.getMaxVelocity() * 0.5);
+                    motor_M1.setVelocity(motor_M1.getMaxVelocity() * 0.7);
+                    motor_M2.setVelocity(motor_M2.getMaxVelocity() * 0.7);
                     
-
                     if(ir_distance_cm < distance_to_ground){
                         robot_state = RobotState::OBSTACLEPREPARE;
                     }
@@ -320,7 +323,7 @@ int main()
                         
                             
                         
-                        if (duration_cast<seconds>(initial_Servo_Zeitgeber.elapsed_time()).count() >= 2) {
+                        if (duration_cast<seconds>(initial_Servo_Zeitgeber.elapsed_time()).count() >= 0.75) {
                             initial_Servo_Zeitgeber.stop();
                             initial_Servo_Zeitgeber.reset();
                             initial_Servo_Zeitgeber_started = false;
@@ -332,43 +335,68 @@ int main()
                     servo_D1.setPulseWidth(servo_input_right);
                     break;
                     }
-        
-                /*case RobotState::OBSTACLE: {
-                    printf("OBSTACLE\n");
-                    motor_M1.setVelocity(motor_M1.getMaxVelocity());
-                    motor_M2.setVelocity(motor_M2.getMaxVelocity());
-                    if(us_distance_cm < 75 && us_distance_cm > 73){              //genauere Massangaben
-                        robot_state = RobotState::ROPEPREPARE;
+
+                case RobotState::DANCE: {
+                    motor_M1.setVelocity(0.0f);
+                    motor_M2.setVelocity(0.0f);
+
+                    if(dance_servo_down == 1){
+                        if ((servo_input_right > 0.0f) &&                     // constrain servo_input to be < 1.0f
+                            (servo_counter_right % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
+                            (servo_counter_right != 0))                       // avoid servo_counter = 0
+                            servo_input_right -= 0.1f;
+                        servo_counter_right++;
+
+                        if ((servo_input_left < 1.0f) &&                     // constrain servo_input to be < 1.0f
+                            (servo_counter_left % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
+                            (servo_counter_left != 0))                       // avoid servo_counter = 0
+                            servo_input_left += 0.1f;
+                        servo_counter_left++;
+                        //prüfe ob Servos genug weit unten sind
+                        if(servo_input_right < weight_dance_right && servo_counter_left > weight_dance_left){
+                            servo_input_right = weight_dance_right;
+                            servo_input_left = weight_dance_left;
+                            finish_dance = 1;
+                        }
+
+                        if(finish_dance == 1){
+                            rotationBeforeRopeM1 = motor_M1.getRotation();
+                            rotationBeforeRopeM2 = motor_M2.getRotation();
+                            motor_M1.setVelocity(motor_M1.getMaxVelocity() * 0.7);
+                            motor_M2.setVelocity(motor_M2.getMaxVelocity() * (-0.7));
+                            diff_Rot_M1 = (motor_M1.getRotation() - rotationBeforeRopeM1);
+                            diff_Rot_M2 = (motor_M2.getRotation() - rotationBeforeRopeM2);
+    
+                            if( (diff_Rot_M1 >= 1.0f) && (diff_Rot_M2 >= 1.3f)){
+                                dance_servo_down = 0;
+                            }
+                        }
                     }
-                    break;
-                }*/
-                /*case RobotState::SLEEP: {
-                    printf("SLEEP\n");
-                    break;
-                }*/
-                /*case RobotState::EMERGENCY: {
-                    printf("EMERGENCY\n");
-                    //steppermotor zurück auf 0.0f
-                    //motoren ausschalten
 
-                    // disable the motion planer and
-                    // move to the initial position asap
-                    // then reset the system
-                    servo_D0.setMaxAcceleration(1.0f);
-                    servo_D1.setMaxAcceleration(1.0f);
-                    servo_D0.setPulseWidth(weight_up_left);
-                    servo_D1.setPulseWidth(weight_up_right);
+                    if(dance_servo_down == 0){
+                            if ((servo_input_left > 0.0f) &&                     // constrain servo_input to be < 1.0f 
+                            (servo_counter_left % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
+                            (servo_counter_left != 0))                       // avoid servo_counter = 0
+                            servo_input_left -= 0.1f;
+                        servo_counter_left++;
+                        
+                        if ((servo_input_right < 1.0f) &&                     // constrain servo_input to be < 1.0f 
+                            (servo_counter_right % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
+                            (servo_counter_right != 0))                       // avoid servo_counter = 0
+                            servo_input_right += 0.1f;
+                        servo_counter_right++;
+                            // prüfe ob servos genug weit oben sind
+                        if(servo_input_right > weight_up_right && servo_input_left < weight_up_left){
+                            servo_input_left = weight_up_left;                  
+                            servo_input_right = weight_up_right;
+                        }
+                    }
 
-                    motor_M1.disableMotionPlanner();
-                    motor_M1.setRotation(0.0f);
-                    motor_M2.disableMotionPlanner();
-                    motor_M2.setRotation(0.0f);
-                    if (motor_M1.getRotation() < 0.1 && motor_M2.getRotation() < 0.1 )
-                        toggle_do_execute_main_fcn();
+
+                    servo_D0.setPulseWidth(servo_input_left);
+                    servo_D1.setPulseWidth(servo_input_right);
+                }
                     
-
-                    break;
-                }*/
                 default: {
 
                     break; // do nothing
@@ -396,15 +424,15 @@ int main()
         // toggling the user led
         user_led = !user_led;
 
-        //printf("US distance cm: %f \n", us_distance_cm);
+        printf("US distance cm: %f \n", us_distance_cm);
         // print to the serial terminal
-        printf("IR distance cm: %f ", ir_distance_cm);
-        printf("IR Sees Ground: %d ", ir_sees_ground);
-        printf("beforeroopeM1: %f ", rotationBeforeRopeM1);
-        printf("motor_M1 getRotation: %f ", motor_M1.getRotation());
+        // printf("IR distance cm: %f ", ir_distance_cm);
+        // printf("IR Sees Ground: %d ", ir_sees_ground);
+        // printf("beforeroopeM1: %f ", rotationBeforeRopeM1);
+        // printf("motor_M1 getRotation: %f ", motor_M1.getRotation());
         //printf("motor_M2 getRotation: %f ", motor_M2.getRotation());
-        printf("diffrotation M1: %f ", diff_Rot_M1);
-        printf("diffrotation M2: %f \n", diff_Rot_M2);
+        // printf("diffrotation M1: %f ", diff_Rot_M1);
+        // printf("diffrotation M2: %f \n", diff_Rot_M2);
        
 
         // read timer and make the main thread sleep for the remaining time span (non blocking)
