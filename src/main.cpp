@@ -1,7 +1,3 @@
-//Test Test, de Pedro isch fett und de Maik blöd
-//Test Test, dLeti isch chlii
-//da isch korrekt
-
 #include "mbed.h"
 
 // pes board pin map
@@ -89,13 +85,10 @@ int main()
     //Variablen wo dass das Gewicht ist
     float weight_down_left = 0.52f;              //war 0.63
     float weight_up_left = 0.025f;              //war 0.05
-    float weight_dance_left = 0.25f;
-    float weight_down_right = 0.3f;             //war 0.2
+    float weight_dance_left = 0.2f;
+    float weight_down_right = 0.3f;             //war 0.2, 0.3
     float weight_up_right = 0.8f;               //war 0.75
-    float weight_dance_right = 0.55;
-
-    int dance_servo_down = 1;
-    int finish_dance = 0;
+    float weight_dance_right = 0.6;
 
     servo_input_left = weight_up_left;
     servo_input_right = weight_up_right;
@@ -128,7 +121,6 @@ int main()
     // limit max. acceleration to half of the default acceleration
     motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.28f);
 
-
     // mechanical button
     DigitalIn mechanical_button(PC_5); // create DigitalIn object to evaluate mechanical button, you
     // need to specify the mode for proper usage, see below
@@ -140,13 +132,19 @@ int main()
     float us_distance_cm = 200.0f;
 
     int platform = 1;
-    //linefollower
     int ir_sees_ground = 0;
     float rotationBeforeRopeM1 = 0.0f;
     float rotationBeforeRopeM2 = 0.0f;
     float diff_Rot_M1 = 0.0f;
     float diff_Rot_M2 = 0.0f;
 
+    int endplat_get_rotation = 1;
+
+    int dance_servo_down = 0;
+    int finish_turn = 1;
+    int finish_get_rotation = 1;
+
+    //linefollower
     // line follower, tune max. vel rps to your needs
     const float d_wheel = 0.046f; // wheel diameter in meters
     const float b_wheel = 0.153f;  // wheelbase, distance from wheel to wheel in meters
@@ -164,13 +162,14 @@ int main()
     float ir_distance_cm = 0.0f;
     float ir_distance_cm_read = 0.0f;
     IRSensor ir_sensor(PC_2);                      // before the calibration the read function will return the averaged mV value
-    //ANPASSEN
     ir_sensor.setCalibration(11821.2086f, -122.1091f); // after the calibration the read function will return the calibrated value
 
     Timer initial_state_timer;
     bool initial_timer_started = false;
     Timer initial_Servo_Zeitgeber;
     bool initial_Servo_Zeitgeber_started = false;
+    Timer total_time_gone;
+    bool total_time_gone_started = false;
 
     // start timer
     main_task_timer.start();
@@ -208,8 +207,14 @@ int main()
                         initial_timer_started = true;
                     }
 
+                    if(!total_time_gone_started){
+                        total_time_gone.start();
+                        total_time_gone_started = true;
+                    }
+
                     if (duration_cast<seconds>(initial_state_timer.elapsed_time()).count() >= 3) {
                         // Setze den Timer zurück für den nächsten Durchlauf
+                        initial_state_timer.stop();
                         initial_state_timer.reset();
                         initial_timer_started = false;
                         robot_state = RobotState::PLATFORM;
@@ -230,10 +235,21 @@ int main()
                     if(platform == 2){
                         motor_M1.setVelocity(motor_M1.getMaxVelocity());
                         motor_M2.setVelocity(motor_M2.getMaxVelocity());
-                        if(us_distance_cm <= 15){
-                            robot_state = RobotState::DANCE;
+                        if (duration_cast<seconds>(total_time_gone.elapsed_time()).count() >= 35){
+                            if(endplat_get_rotation == 1){
+                                rotationBeforeRopeM1 = motor_M1.getRotation();
+                                rotationBeforeRopeM2 = motor_M2.getRotation();
+                                endplat_get_rotation = 0;
+                            }
+                            diff_Rot_M1 = (motor_M1.getRotation() - rotationBeforeRopeM1);
+                            diff_Rot_M2 = (motor_M2.getRotation() - rotationBeforeRopeM2);
+        
+                            if( (diff_Rot_M1 >= 3.0f) && (diff_Rot_M2 >= 3.0f)){
+                                robot_state = RobotState::DANCE;
+                            }
                         }
                     }
+
                     if(ir_sees_ground == 0){
                         rotationBeforeRopeM1 = motor_M1.getRotation();
                         rotationBeforeRopeM2 = motor_M2.getRotation();
@@ -340,6 +356,25 @@ int main()
                     motor_M1.setVelocity(0.0f);
                     motor_M2.setVelocity(0.0f);
 
+                    if(finish_turn == 1){
+                        if (finish_get_rotation == 1){
+                            rotationBeforeRopeM1 = motor_M1.getRotation();
+                            rotationBeforeRopeM2 = motor_M2.getRotation();
+                            finish_get_rotation = 0;
+                        }
+                        motor_M1.setVelocity(motor_M1.getMaxVelocity() * (-0.7));
+                        motor_M2.setVelocity(motor_M2.getMaxVelocity() * 0.7);
+                        diff_Rot_M1 = (motor_M1.getRotation() - rotationBeforeRopeM1);
+                        diff_Rot_M2 = (motor_M2.getRotation() - rotationBeforeRopeM2);
+
+                        if (diff_Rot_M2 >= 3.95f){
+                            motor_M1.setVelocity(0.0f);
+                            motor_M2.setVelocity(0.0f);
+                            finish_turn = 0;
+                            dance_servo_down = 1;
+                        }
+                    }
+
                     if(dance_servo_down == 1){
                         if ((servo_input_right > 0.0f) &&                     // constrain servo_input to be < 1.0f
                             (servo_counter_right % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
@@ -356,24 +391,13 @@ int main()
                         if(servo_input_right < weight_dance_right && servo_counter_left > weight_dance_left){
                             servo_input_right = weight_dance_right;
                             servo_input_left = weight_dance_left;
-                            finish_dance = 1;
+                            dance_servo_down = 2;
                         }
 
-                        if(finish_dance == 1){
-                            rotationBeforeRopeM1 = motor_M1.getRotation();
-                            rotationBeforeRopeM2 = motor_M2.getRotation();
-                            motor_M1.setVelocity(motor_M1.getMaxVelocity() * 0.7);
-                            motor_M2.setVelocity(motor_M2.getMaxVelocity() * (-0.7));
-                            diff_Rot_M1 = (motor_M1.getRotation() - rotationBeforeRopeM1);
-                            diff_Rot_M2 = (motor_M2.getRotation() - rotationBeforeRopeM2);
-    
-                            if( (diff_Rot_M1 >= 1.0f) && (diff_Rot_M2 >= 1.3f)){
-                                dance_servo_down = 0;
-                            }
-                        }
+                        
                     }
 
-                    if(dance_servo_down == 0){
+                    if(dance_servo_down == 2){
                             if ((servo_input_left > 0.0f) &&                     // constrain servo_input to be < 1.0f 
                             (servo_counter_left % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
                             (servo_counter_left != 0))                       // avoid servo_counter = 0
@@ -416,6 +440,7 @@ int main()
                 us_distance_cm = 200.0f;
 
                 ir_distance_cm = 0.0f;
+
 
                 robot_state = RobotState::INITIAL;
             }
