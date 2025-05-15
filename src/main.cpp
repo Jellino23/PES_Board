@@ -1,9 +1,9 @@
 #include "mbed.h"
 
-// pes board pin map
+// PES Board Pin Mapping
 #include "PESBoardPinMap.h"
 
-// drivers
+// Treiber
 #include "DebounceIn.h"
 #include "UltrasonicSensor.h"
 #include "DCMotor.h"
@@ -12,158 +12,142 @@
 #include "LineFollower.h"
 #include "IRSensor.h"
 
-bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
-                                   // decides whether to execute the main task or not
-bool do_reset_all_once = false;    // this variable is used to reset certain variables and objects and
-                                   // shows how you can run a code segment only once
+// Globale Variablen
+bool do_execute_main_task = false; // Steuert die Ausführung der Hauptaufgabe (wird durch Benutzerbutton getoggelt)
+bool do_reset_all_once = false;    // Wird verwendet, um Variablen einmalig zurückzusetzen
 
-// objects for user button (blue button) handling on nucleo board
-DebounceIn user_button(BUTTON1);   // create DebounceIn to evaluate the user button
-void toggle_do_execute_main_fcn(); // custom function which is getting executed when user
-                                   // button gets pressed, definition below
+// Objekte für Benutzerbutton (blauer Button) auf dem Nucleo-Board
+DebounceIn user_button(BUTTON1);   // DebounceIn-Objekt zur Auswertung des Benutzerbuttons
+void toggle_do_execute_main_fcn(); // Funktion, die bei Button-Druck ausgefÃ¼hrt wird
 
-// main runs as an own thread
+// Hauptprogramm läuft als eigener Thread
 int main()
 {
-    // set up states for state machine
+    // Zustände für die Zustandsmaschine
     enum RobotState {
-        INITIAL,
-        PLATFORM,
-        ROPEPREPARE,
-        ROPE,
-        OBSTACLEPREPARE,
-        DANCE
+        INITIAL,          // Initialisierungszustand
+        PLATFORM,         // Plattform-Phase
+        ROPEPREPARE,      // Vorbereitung für Seil-Phase
+        ROPE,             // Seil-Phase
+        OBSTACLEPREPARE,  // Vorbereitung für Hindernis-Phase
+        DANCE             // Tanz-Phase (Finale)
     } robot_state = RobotState::INITIAL;
-    // attach button fall function address to user button object
+    
+    // Button-Funktion zuweisen
     user_button.fall(&toggle_do_execute_main_fcn);
 
-    // while loop gets executed every main_task_period_ms milliseconds, this is a
-    // simple approach to repeatedly execute main
-    const int main_task_period_ms = 20; // define main task period time in ms e.g. 20 ms, there for
-                                        // the main task will run 50 times per second
-    Timer main_task_timer;              // create Timer object which we use to run the main task
-                                        // every main_task_period_ms
+    // Haupttask wird alle main_task_period_ms Millisekunden ausgeführt
+    const int main_task_period_ms = 20; // Haupttask-Periodendauer in ms (50 Hz)
+    Timer main_task_timer;              // Timer für die periodische Ausführung
 
-    // led on nucleo board
+    // LED auf dem Nucleo-Board
     DigitalOut user_led(LED1);
 
-    // additional led
-    // create DigitalOut object to command extra led, you need to add an aditional resistor, e.g. 220...500 Ohm
-    // a led has an anode (+) and a cathode (-), the cathode needs to be connected to ground via the resistor
+    // Zusätzliche LED
     DigitalOut led1(PB_9);
 
-    // servo
+    // Servos initialisieren
     Servo servo_D0(PB_D0);
     Servo servo_D1(PB_D1);
 
-    // minimal pulse width and maximal pulse width obtained from the servo calibration process
-    // reely S0090 
-    //ANPASSEN
+    // Kalibrierungswerte für die Servos (minimale/maximale Pulsbreite)
     float servo_D0_ang_min = 0.0310f;
     float servo_D0_ang_max = 0.118f;
     float servo_D1_ang_min = 0.0315f;
     float servo_D1_ang_max = 0.122f;
 
-    // servo.setPulseWidth: before calibration (0,1) -> (min pwm, max pwm)
-    // servo.setPulseWidth: after calibration (0,1) -> (servo_D0_ang_min, servo_D0_ang_max)
+    // Servos kalibrieren
     servo_D0.calibratePulseMinMax(servo_D0_ang_min, servo_D0_ang_max);
     servo_D1.calibratePulseMinMax(servo_D1_ang_min, servo_D1_ang_max);
 
-    // EVTL ANPASSEN
-    // default acceleration of the servo motion profile is 1.0e6f
+    // Maximale Beschleunigung der Servos einstellen
     servo_D0.setMaxAcceleration(0.3f);
     servo_D1.setMaxAcceleration(0.3f);
 
-    // variables to move the servo, this is just an example
+    // Servo-Steuerungsvariablen
     float servo_input_left = 0.5f;
     float servo_input_right = 0.5f;
-    int servo_counter_left = 0; // define servo counter, this is an additional variable
-                           // used to command the servo
+    int servo_counter_left = 0;  // Zähler für Servobewegung
     int servo_counter_right = 0;
     const int loops_per_seconds = static_cast<int>(ceilf(1.0f / (0.001f * static_cast<float>(main_task_period_ms))));
 
-    //Variablen wo dass das Gewicht ist
-    float weight_down_left = 0.52f;              //war 0.63
-    float weight_up_left = 0.025f;              //war 0.05
+    // Positionen für die Gewichte (Servo-Winkel)
+    float weight_down_left = 0.52f;
+    float weight_up_left = 0.025f;
     float weight_dance_left = 0.2f;
-    float weight_down_right = 0.3f;             //war 0.2, 0.3
-    float weight_up_right = 0.8f;               //war 0.75
-    float weight_dance_right = 0.6;
+    float weight_down_right = 0.3f;
+    float weight_up_right = 0.8f;
+    float weight_dance_right = 0.6f;
 
+    // Initiale Servopositionen
     servo_input_left = weight_up_left;
     servo_input_right = weight_up_right;
 
-    // create object to enable power electronics for the dc motors
+    // Motorsteuerung aktivieren
     DigitalOut enable_motors(PB_ENABLE_DCMOTORS);
 
-    const float voltage_max = 12.0f; // maximum voltage of battery packs, adjust this to
-    // 6.0f V if you only use one battery pack
+    // Maximale Batteriespannung
+    const float voltage_max = 12.0f;
 
-    // Motor M1
-    const float gear_ratio_M1 = 100.0f; // gear ratio
-    const float kn_M1 = 140.0f / 12.0f;  // motor constant [rpm/V]
+    // Motor M1 konfigurieren
+    const float gear_ratio_M1 = 100.0f; // Übersetzungsverhältnis
+    const float kn_M1 = 140.0f / 12.0f; // Motorkonstante [rpm/V]
     DCMotor motor_M1(PB_PWM_M1, PB_ENC_A_M1, PB_ENC_B_M1, gear_ratio_M1, kn_M1, voltage_max);
-    // limit max. velocity to half physical possible velocity
-    motor_M1.setMaxVelocity(motor_M1.getMaxPhysicalVelocity() * 0.28f);
-    // enable the motion planner for smooth movements
-    // //motor_M1.enableMotionPlanner();
-    // limit max. acceleration to half of the default acceleration
-    motor_M1.setMaxAcceleration(motor_M1.getMaxAcceleration() * 0.28f);
+    motor_M1.setMaxVelocity(motor_M1.getMaxPhysicalVelocity() * 0.28f); // Maximalgeschwindigkeit begrenzen
+    motor_M1.setMaxAcceleration(motor_M1.getMaxAcceleration() * 0.28f); // Beschleunigung begrenzen
 
-    // Motor M2
-    const float gear_ratio_M2 = 100.0f; // gear ratio
-    const float kn_M2 = 140.0f / 12.0f;  // motor constant [rpm/V]
+    // Motor M2 konfigurieren (analog zu M1)
+    const float gear_ratio_M2 = 100.0f;
+    const float kn_M2 = 140.0f / 12.0f;
     DCMotor motor_M2(PB_PWM_M2, PB_ENC_A_M2, PB_ENC_B_M2, gear_ratio_M2, kn_M2, voltage_max);
-    // limit max. velocity to half physical possible velocity
     motor_M2.setMaxVelocity(motor_M2.getMaxPhysicalVelocity() * 0.28f);
-    // enable the motion planner for smooth movements
-    //motor_M2.enableMotionPlanner();
-    // limit max. acceleration to half of the default acceleration
     motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.28f);
 
-    // mechanical button
-    DigitalIn mechanical_button(PC_5); // create DigitalIn object to evaluate mechanical button, you
-    // need to specify the mode for proper usage, see below
-    mechanical_button.mode(PullUp);    // sets pullup between pin and 3.3 V, so that there
-    // is a defined potential
+    // Mechanischer Button
+    DigitalIn mechanical_button(PC_5);
+    mechanical_button.mode(PullUp); // PullUp-Widerstand aktivieren
 
-    // ultra sonic sensor
+    // Ultraschallsensor
     UltrasonicSensor us_sensor(PB_D3);
-    float us_distance_cm = 200.0f;
+    float us_distance_cm = 0.0f;
 
-    int platform = 1;
-    int ir_sees_ground = 0;
-    float rotationBeforeRopeM1 = 0.0f;
+    // Zustandsvariablen
+    int platform = 1; // Plattform-Status (1 = Startplattform, 2 = Endplattform)
+    int ir_sees_ground = 0; // IR-Sensor erkennt Boden
+    float rotationBeforeRopeM1 = 0.0f; // Motorrotation vor Seilphase
     float rotationBeforeRopeM2 = 0.0f;
-    float diff_Rot_M1 = 0.0f;
+    float rotationBeforePlatM1 = 0.0f; // Motorrotation vor Plattformphase
+    float rotationBeforePlatM2 = 0.0f;
+    float diff_Rot_M1 = 0.0f; // Rotationsdifferenz
     float diff_Rot_M2 = 0.0f;
+    float diff_Rot_M1_end = 0.0f; // Rotationsdifferenz für Endphase
+    float diff_Rot_M2_end = 0.0f;
+    
+    int endplat_get_rotation = 1; // Flag für Rotationsmessung auf Endplattform
 
-    int endplat_get_rotation = 1;
+    int dance_servo_down = 0; // Status für Servos im Tanz
+    int finish_turn = 1;      // Flag für Abschlussdrehung
+    int finish_get_rotation = 1; // Flag für Rotationsmessung im Tanz
 
-    int dance_servo_down = 0;
-    int finish_turn = 1;
-    int finish_get_rotation = 1;
-
-    //linefollower
-    // line follower, tune max. vel rps to your needs
-    const float d_wheel = 0.046f; // wheel diameter in meters
-    const float b_wheel = 0.153f;  // wheelbase, distance from wheel to wheel in meters
-    const float bar_dist = 0.02f; // distance from wheel axis to leds on sensor bar / array in meters //angepasst vorher war 0.02
+    // LineFollower konfigurieren
+    const float d_wheel = 0.046f; // Raddurchmesser [m]
+    const float b_wheel = 0.153f;  // Achsabstand [m]
+    const float bar_dist = 0.02f; // Abstand von Radachse zu LED-Sensorleiste [m]
     LineFollower lineFollower(PB_9, PB_8, bar_dist, d_wheel, b_wheel, motor_M2.getMaxPhysicalVelocity());
     
-    // nonlinear controller gains, tune to your needs (linefollower)
+    // Reglerparameter für LineFollower
     const float Kp = 1.2f * 2.0f;
     const float Kp_nl = 1.2f * 17.0f;
     lineFollower.setRotationalVelocityGain(Kp, Kp_nl);
 
-    // ir distance sensor with average filter and implicit calibration
+    // IR-Sensor mit Filter und Kalibrierung
+    float distance_to_ground = 10.0f; // Schwellwert für Bodenerkennung [cm]
+    float ir_distance_cm = 0.0f;     // Gefilterte IR-Messung
+    float ir_distance_cm_read = 0.0f; // Rohmessung
+    IRSensor ir_sensor(PC_2);
+    ir_sensor.setCalibration(11821.2086f, -122.1091f); // Kalibrierungsparameter
 
-    float distance_to_ground = 10.0f;
-    float ir_distance_cm = 0.0f;
-    float ir_distance_cm_read = 0.0f;
-    IRSensor ir_sensor(PC_2);                      // before the calibration the read function will return the averaged mV value
-    ir_sensor.setCalibration(11821.2086f, -122.1091f); // after the calibration the read function will return the calibrated value
-
+    // Timer für verschiedene Zustände
     Timer initial_state_timer;
     bool initial_timer_started = false;
     Timer initial_Servo_Zeitgeber;
@@ -171,97 +155,113 @@ int main()
     Timer total_time_gone;
     bool total_time_gone_started = false;
 
-    // start timer
+    // Timer starten
     main_task_timer.start();
 
-    // this loop will run forever
+    // Hauptschleife
     while (true) {
         main_task_timer.reset();
 
         if (do_execute_main_task) {
-
-            // visual feedback that the main task is executed, setting this once would actually be enough
+            // Visuelles Feedback, dass Haupttask läuft
             led1 = 1;
             
+            // IR-Sensor auslesen
             ir_distance_cm_read = ir_sensor.readcm();
             ir_distance_cm = ir_distance_cm_read - 3.0;
 
-            //read distance with us_sensor
-            const float us_distance_cm_candidate = us_sensor.read();
-            if (us_distance_cm_candidate > 0.0f){        //only valid measurments are accepted
+            // Ultraschallsensor auslesen (nur gültige Werte Übernehmen)
+            float us_distance_cm_candidate = 0.0f;
+            us_distance_cm_candidate = us_sensor.read();
+            if (us_distance_cm_candidate > 0.0f) {
                 us_distance_cm = us_distance_cm_candidate;
             }
+
+            // Zustandsmaschine
             switch (robot_state) {
                 case RobotState::INITIAL: {
                     printf("INITIAL\n");
-                    // enable hardwaredriver DC motors: 0 -> disabled, 1 -> enabled
+                    // Hardware aktivieren
                     enable_motors = 1;
                     if (!servo_D0.isEnabled())
                         servo_D0.enable(weight_up_left);
                     if (!servo_D1.isEnabled())
                         servo_D1.enable(weight_up_right);
-                    //Linefollower sieht Line? -->
 
-                    if(!initial_timer_started){
+                    // Timer für Initialisierungsphase starten
+                    if(!initial_timer_started) {
                         initial_state_timer.start();
                         initial_timer_started = true;
                     }
 
-                    if(!total_time_gone_started){
+                    // Gesamtzeit-Timer starten
+                    if(!total_time_gone_started) {
                         total_time_gone.start();
                         total_time_gone_started = true;
                     }
 
+                    // Nach 3 Sekunden in nächsten Zustand wechseln
                     if (duration_cast<seconds>(initial_state_timer.elapsed_time()).count() >= 3) {
-                        // Setze den Timer zurück für den nächsten Durchlauf
                         initial_state_timer.stop();
                         initial_state_timer.reset();
                         initial_timer_started = false;
                         robot_state = RobotState::PLATFORM;
                     }
-
                     break;
                 }
                 case RobotState::PLATFORM: {
                     printf("PLATFORM\n");
 
+                    // Servos in Ausgangsposition
                     servo_D0.setPulseWidth(weight_up_left);
                     servo_D1.setPulseWidth(weight_up_right);
-                    //Auf der Startplattform
-                    if(platform == 1){
+
+                    // Auf Startplattform: LineFollower nutzen
+                    if(platform == 1) {
                         motor_M1.setVelocity(lineFollower.getLeftWheelVelocity());
                         motor_M2.setVelocity(lineFollower.getRightWheelVelocity());
                     }
-                    if(platform == 2){
+                    
+                    // Auf Endplattform: Geradeaus fahren
+                    if(platform == 2) {
                         motor_M1.setVelocity(motor_M1.getMaxVelocity());
                         motor_M2.setVelocity(motor_M2.getMaxVelocity());
-                        if (duration_cast<seconds>(total_time_gone.elapsed_time()).count() >= 35){
-                            if(endplat_get_rotation == 1){
-                                rotationBeforeRopeM1 = motor_M1.getRotation();
+
+                        // Nach 40 Sekunden Endplattform-Phase
+                        if (duration_cast<seconds>(total_time_gone.elapsed_time()).count() >= 40) {
+                            if(endplat_get_rotation == 1) {
+                                // Rotationen speichern
+                                rotationBeforePlatM1 = motor_M1.getRotation();
                                 rotationBeforeRopeM2 = motor_M2.getRotation();
                                 endplat_get_rotation = 0;
                             }
-                            diff_Rot_M1 = (motor_M1.getRotation() - rotationBeforeRopeM1);
-                            diff_Rot_M2 = (motor_M2.getRotation() - rotationBeforeRopeM2);
-        
-                            if( (diff_Rot_M1 >= 3.0f) && (diff_Rot_M2 >= 3.0f)){
+                            
+                            // Rotationsdifferenz berechnen
+                            diff_Rot_M1_end = (motor_M1.getRotation() - rotationBeforePlatM1);
+                            diff_Rot_M2_end = (motor_M2.getRotation() - rotationBeforePlatM2);
+
+                            // Wenn genug weit gefahren und Hindernis erkannt: Tanzphase starten
+                            if( (diff_Rot_M1_end >= 3.0f) && (diff_Rot_M2_end >= 3.0f) && us_distance_cm < 25) {
                                 robot_state = RobotState::DANCE;
                             }
                         }
                     }
 
-                    if(ir_sees_ground == 0){
+                    // IR-Sensor erkennt Boden?
+                    if(ir_sees_ground == 0) {
                         rotationBeforeRopeM1 = motor_M1.getRotation();
                         rotationBeforeRopeM2 = motor_M2.getRotation();
                     }
 
-                    if((ir_distance_cm > distance_to_ground) || (ir_sees_ground == 1)){ 
+                    // Plattformwechsel erkennen
+                    if((ir_distance_cm > distance_to_ground) || (ir_sees_ground == 1)) { 
                         platform = 2;
                         ir_sees_ground = 1;
                         diff_Rot_M1 = (motor_M1.getRotation() - rotationBeforeRopeM1);
                         diff_Rot_M2 = (motor_M2.getRotation() - rotationBeforeRopeM2);
 
-                        if( (diff_Rot_M1 >= 1.3f) && (diff_Rot_M2 >= 1.3f)){
+                        // Wenn genug weit gefahren: Vorbereitung Seilphase
+                        if( (diff_Rot_M1 >= 1.3f) && (diff_Rot_M2 >= 1.3f)) {
                             ir_sees_ground = 0;
                             robot_state = RobotState::ROPEPREPARE;
                         }
@@ -269,67 +269,71 @@ int main()
                     break;
                 }
                 case RobotState::ROPEPREPARE: {
-                    //ANPASSEN
                     printf("ROPEPREPARE\n");
+                    // Motoren stoppen
                     motor_M1.setVelocity(0.0f);
                     motor_M2.setVelocity(0.0f);
-                    // calculate inputs for the servos for the next cycle
-                    if ((servo_input_right > 0.0f) &&                     // constrain servo_input to be < 1.0f
-                        (servo_counter_right % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
-                        (servo_counter_right != 0))                       // avoid servo_counter = 0
+                    
+                    // Servos langsam in Position bringen 
+                    if ((servo_input_right > 0.0f) && 
+                        (servo_counter_right % loops_per_seconds == 0) && 
+                        (servo_counter_right != 0))
                         servo_input_right -= 0.1f;
                     servo_counter_right++;
 
-                    if ((servo_input_left < 1.0f) &&                     // constrain servo_input to be < 1.0f
-                        (servo_counter_left % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
-                        (servo_counter_left != 0))                       // avoid servo_counter = 0
+                    if ((servo_input_left < 1.0f) && 
+                        (servo_counter_left % loops_per_seconds == 0) && 
+                        (servo_counter_left != 0))
                         servo_input_left += 0.1f;
                     servo_counter_left++;
 
-                    if(servo_input_right < weight_down_right && servo_counter_left > weight_down_left){
+                    // Wenn Servos in Position: Seilphase starten
+                    if(servo_input_right < weight_down_right && servo_counter_left > weight_down_left) {
                         servo_input_right = weight_down_right;
                         servo_input_left = weight_down_left;
                         robot_state = RobotState::ROPE;
                     }
 
+                    // Servos ansteuern
                     servo_D0.setPulseWidth(servo_input_left);
                     servo_D1.setPulseWidth(servo_input_right);
                     break;
-
                 }
                 case RobotState::ROPE: {
                     printf("ROPE\n");
+                    // Motoren mit reduzierter Geschwindigkeit laufen lassen
                     motor_M1.setVelocity(motor_M1.getMaxVelocity() * 0.7);
                     motor_M2.setVelocity(motor_M2.getMaxVelocity() * 0.7);
                     
-                    if(ir_distance_cm < distance_to_ground){
+                    // Wenn Boden erkannt: Vorbereitung Hindernisphase
+                    if(ir_distance_cm < distance_to_ground) {
                         robot_state = RobotState::OBSTACLEPREPARE;
                     }
-
                     break;
                 }
                 case RobotState::OBSTACLEPREPARE: {
                     printf("OBSTACLEPREPARE\n");
+                    // Motoren stoppen
                     motor_M1.setVelocity(0.0f);
                     motor_M2.setVelocity(0.0f);
                     
-
-                    if ((servo_input_left > 0.0f) &&                     // constrain servo_input to be < 1.0f 
-                        (servo_counter_left % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
-                        (servo_counter_left != 0))                       // avoid servo_counter = 0
+                    // Servos langsam in Ausgangsposition bringen
+                    if ((servo_input_left > 0.0f) && 
+                        (servo_counter_left % loops_per_seconds == 0) && 
+                        (servo_counter_left != 0))
                         servo_input_left -= 0.1f;
                     servo_counter_left++;
                     
-                    if ((servo_input_right < 1.0f) &&                     // constrain servo_input to be < 1.0f 
-                        (servo_counter_right % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
-                        (servo_counter_right != 0))                       // avoid servo_counter = 0
+                    if ((servo_input_right < 1.0f) && 
+                        (servo_counter_right % loops_per_seconds == 0) && 
+                        (servo_counter_right != 0))
                         servo_input_right += 0.1f;
                     servo_counter_right++;
-                        // prüfe ob servos genug weit oben sind
-                    if(servo_input_right > weight_up_right && servo_input_left < weight_up_left){
+                    
+                    // Wenn Servos in Position: Wartezeit einhalten
+                    if(servo_input_right > weight_up_right && servo_input_left < weight_up_left) {
                         servo_input_left = weight_up_left;                  
                         servo_input_right = weight_up_right;
-                        
                         
                         if (!initial_Servo_Zeitgeber_started) {
                             initial_Servo_Zeitgeber.reset();
@@ -337,37 +341,41 @@ int main()
                             initial_Servo_Zeitgeber_started = true;
                         }
                         
-                            
-                        
+                        // Nach 0.75 Sekunden zurück zur Plattformphase
                         if (duration_cast<seconds>(initial_Servo_Zeitgeber.elapsed_time()).count() >= 0.75) {
                             initial_Servo_Zeitgeber.stop();
                             initial_Servo_Zeitgeber.reset();
                             initial_Servo_Zeitgeber_started = false;
                             robot_state = RobotState::PLATFORM;
                         }
-                    
                     }
+                    
+                    // Servos ansteuern
                     servo_D0.setPulseWidth(servo_input_left);
                     servo_D1.setPulseWidth(servo_input_right);
                     break;
-                    }
-
+                }
                 case RobotState::DANCE: {
+                    printf("DANCE\n");
+                    // Motoren stoppen
                     motor_M1.setVelocity(0.0f);
                     motor_M2.setVelocity(0.0f);
 
-                    if(finish_turn == 1){
-                        if (finish_get_rotation == 1){
+                    // Abschlussdrehung durchführen
+                    if(finish_turn == 1) {
+                        if (finish_get_rotation == 1) {
                             rotationBeforeRopeM1 = motor_M1.getRotation();
                             rotationBeforeRopeM2 = motor_M2.getRotation();
                             finish_get_rotation = 0;
                         }
+                        // Drehung (M1 rückwärts, M2 vorwärts)
                         motor_M1.setVelocity(motor_M1.getMaxVelocity() * (-0.7));
                         motor_M2.setVelocity(motor_M2.getMaxVelocity() * 0.7);
                         diff_Rot_M1 = (motor_M1.getRotation() - rotationBeforeRopeM1);
                         diff_Rot_M2 = (motor_M2.getRotation() - rotationBeforeRopeM2);
 
-                        if (diff_Rot_M2 >= 3.95f){
+                        // Wenn Drehung abgeschlossen: Servos bewegen
+                        if (diff_Rot_M2 >= 3.95f) {
                             motor_M1.setVelocity(0.0f);
                             motor_M2.setVelocity(0.0f);
                             finish_turn = 0;
@@ -375,81 +383,87 @@ int main()
                         }
                     }
 
-                    if(dance_servo_down == 1){
-                        if ((servo_input_right > 0.0f) &&                     // constrain servo_input to be < 1.0f
-                            (servo_counter_right % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
-                            (servo_counter_right != 0))                       // avoid servo_counter = 0
+                    // Servos nach unten bewegen
+                    if(dance_servo_down == 1) {
+                        if ((servo_input_right > 0.0f) && 
+                            (servo_counter_right % loops_per_seconds == 0) && 
+                            (servo_counter_right != 0))
                             servo_input_right -= 0.1f;
                         servo_counter_right++;
 
-                        if ((servo_input_left < 1.0f) &&                     // constrain servo_input to be < 1.0f
-                            (servo_counter_left % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
-                            (servo_counter_left != 0))                       // avoid servo_counter = 0
+                        if ((servo_input_left < 1.0f) && 
+                            (servo_counter_left % loops_per_seconds == 0) && 
+                            (servo_counter_left != 0))
                             servo_input_left += 0.1f;
                         servo_counter_left++;
-                        //prüfe ob Servos genug weit unten sind
-                        if(servo_input_right < weight_dance_right && servo_counter_left > weight_dance_left){
+                        
+                        // Wenn Servos in Position: nächste Phase
+                        if(servo_input_right < weight_dance_right && servo_counter_left > weight_dance_left) {
                             servo_input_right = weight_dance_right;
                             servo_input_left = weight_dance_left;
                             dance_servo_down = 2;
                         }
-
-                        
                     }
 
-                    if(dance_servo_down == 2){
-                            if ((servo_input_left > 0.0f) &&                     // constrain servo_input to be < 1.0f 
-                            (servo_counter_left % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
-                            (servo_counter_left != 0))                       // avoid servo_counter = 0
+                    // Servos zurück nach oben bewegen
+                    if(dance_servo_down == 2) {
+                        if ((servo_input_left > 0.0f) && 
+                            (servo_counter_left % loops_per_seconds == 0) && 
+                            (servo_counter_left != 0))
                             servo_input_left -= 0.1f;
                         servo_counter_left++;
                         
-                        if ((servo_input_right < 1.0f) &&                     // constrain servo_input to be < 1.0f 
-                            (servo_counter_right % loops_per_seconds == 0) && // true if servo_counter is a multiple of loops_per_second
-                            (servo_counter_right != 0))                       // avoid servo_counter = 0
+                        if ((servo_input_right < 1.0f) && 
+                            (servo_counter_right % loops_per_seconds == 0) && 
+                            (servo_counter_right != 0))
                             servo_input_right += 0.1f;
                         servo_counter_right++;
-                            // prüfe ob servos genug weit oben sind
-                        if(servo_input_right > weight_up_right && servo_input_left < weight_up_left){
+                        
+                        // Wenn Servos oben: Position halten
+                        if(servo_input_right > weight_up_right && servo_input_left < weight_up_left) {
                             servo_input_left = weight_up_left;                  
                             servo_input_right = weight_up_right;
                         }
                     }
 
-
+                    // Servos ansteuern
                     servo_D0.setPulseWidth(servo_input_left);
                     servo_D1.setPulseWidth(servo_input_right);
+                    break;
                 }
-                    
                 default: {
-
-                    break; // do nothing
+                    break; // nichts tun
                 }
             }
 
         } else {
-            // the following code block gets executed only once
+            // Reset-Routine (wird einmal ausgeführt, wenn Haupttask deaktiviert wird)
             if (do_reset_all_once) {
                 do_reset_all_once = false;
-                // reset variables and objects
+                // Alle Komponenten deaktivieren
                 led1 = 0;
-                // reset variables and objects
                 servo_D0.disable();
                 servo_D1.disable();
                 enable_motors = 0;
                 us_distance_cm = 200.0f;
 
+                // Variablen zurücksetzen
                 ir_distance_cm = 0.0f;
+                total_time_gone.stop();
+                total_time_gone.reset();
+                total_time_gone_started = false;
+                endplat_get_rotation = 1;
 
-
+                // Zurück in Initialzustand
                 robot_state = RobotState::INITIAL;
             }
         }
 
-        // toggling the user led
+        // User-LED toggeln
         user_led = !user_led;
 
-        printf("US distance cm: %f \n", us_distance_cm);
+        // Debug-Ausgaben
+        // printf("US distance cm: %f \n", us_distance_cm);
         // print to the serial terminal
         // printf("IR distance cm: %f ", ir_distance_cm);
         // printf("IR Sees Ground: %d ", ir_sees_ground);
@@ -458,9 +472,8 @@ int main()
         //printf("motor_M2 getRotation: %f ", motor_M2.getRotation());
         // printf("diffrotation M1: %f ", diff_Rot_M1);
         // printf("diffrotation M2: %f \n", diff_Rot_M2);
-       
 
-        // read timer and make the main thread sleep for the remaining time span (non blocking)
+        // Restliche Zeit bis zum nächsten Zyklus warten
         int main_task_elapsed_time_ms = duration_cast<milliseconds>(main_task_timer.elapsed_time()).count();
         if (main_task_period_ms - main_task_elapsed_time_ms < 0)
             printf("Warning: Main task took longer than main_task_period_ms\n");
@@ -469,11 +482,12 @@ int main()
     }
 }
 
+// Funktion zum Umschalten des Haupttask-Status
 void toggle_do_execute_main_fcn()
 {
-    // toggle do_execute_main_task if the button was pressed
+    // Haupttask-Status umschalten
     do_execute_main_task = !do_execute_main_task;
-    // set do_reset_all_once to true if do_execute_main_task changed from false to true
+    // Reset-Flag setzen, wenn Haupttask aktiviert wird
     if (do_execute_main_task)
         do_reset_all_once = true;
 }
